@@ -4,6 +4,11 @@ import (
 	"bufio"
 	"errors"
 	"io"
+	"strconv"
+)
+
+var (
+	ErrInvalidEnding = errors.New("invalid line ending")
 )
 
 type RespReader struct {
@@ -20,20 +25,28 @@ func (r *RespReader) Read() (Value, error) {
 		return Value{}, err
 	}
 
-	switch _type {
+	val := Value{
+		Type: _type,
+	}
+
+	switch val.Type {
 	case TypeSimpleString, TypeError:
 		str, err := r.readSimpleString()
 		if err != nil {
 			return Value{}, nil
 		}
 
-		return Value{
-			Type:   _type,
-			String: str,
-		}, nil
-
+		val.String = str
+		return val, nil
 	case TypeArray:
 	case TypeInteger:
+		num, err := r.readInteger()
+		if err != nil {
+			return Value{}, err
+		}
+
+		val.Num = num
+		return val, nil
 	case TypeBulkString:
 	}
 
@@ -48,8 +61,29 @@ func (r *RespReader) readSimpleString() ([]byte, error) {
 	}
 
 	if len(line) < 2 || line[len(line)-2] != '\r' {
-		return nil, errors.New("invalid line ending")
+		return nil, ErrInvalidEnding
 	}
 
 	return line[:len(line)-2], nil
+}
+
+func (r *RespReader) readInteger() (int, error) {
+	line, err := r.rd.ReadBytes('\n')
+	if err != nil {
+		return 0, err
+	}
+
+	// Command with integer cant be empty
+	if len(line) < 3 || line[len(line)-2] != '\r' {
+		return 0, ErrInvalidEnding
+	}
+
+	strNum := string(line[:len(line)-2])
+
+	num, err := strconv.ParseInt(strNum, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return int(num), nil
 }
