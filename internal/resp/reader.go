@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"io"
+	"reflect"
 	"strconv"
 )
 
@@ -11,16 +12,16 @@ var (
 	ErrInvalidEnding = errors.New("invalid line ending")
 )
 
-type RespReader struct {
+type Decoder struct {
 	rd *bufio.Reader
 }
 
-func NewReader(rd io.Reader) *RespReader {
-	return &RespReader{rd: bufio.NewReader(rd)}
+func NewDecoder(rd io.Reader) *Decoder {
+	return &Decoder{rd: bufio.NewReader(rd)}
 }
 
-func (r *RespReader) Read() (Value, error) {
-	_type, err := r.rd.ReadByte()
+func (d *Decoder) Read() (Value, error) {
+	_type, err := d.rd.ReadByte()
 	if err != nil {
 		return Value{}, err
 	}
@@ -31,16 +32,27 @@ func (r *RespReader) Read() (Value, error) {
 
 	switch val.Type {
 	case TypeSimpleString, TypeError:
-		str, err := r.readSimpleString()
+		str, err := d.readLine()
 		if err != nil {
-			return Value{}, nil
+			return Value{}, err
 		}
 
 		val.String = str
 		return val, nil
 	case TypeArray:
+		array, err := d.readArray()
+		if err != nil {
+			return Value{}, err
+		}
+
+		if array == nil {
+			val.IsNull = true
+		}
+
+		val.Array = array
+		return val, nil
 	case TypeInteger:
-		num, err := r.readInteger()
+		num, err := d.readInteger()
 		if err != nil {
 			return Value{}, err
 		}
@@ -48,15 +60,28 @@ func (r *RespReader) Read() (Value, error) {
 		val.Num = num
 		return val, nil
 	case TypeBulkString:
+		str, err := d.readBulkString()
+		if err != nil {
+			return Value{}, err
+		}
+
+		if str == nil {
+			val.IsNull = true
+		}
+
+		val.String = str
+		return val, nil
 	}
 
 	return Value{}, errors.New("unexpected type")
 }
 
-// readSimpleString read Simple String and Error from command
-func (r *RespReader) readSimpleString() ([]byte, error) {
-	line, err := r.rd.ReadBytes('\n')
+func (d *Decoder) readLine() ([]byte, error) {
+	line, err := d.rd.ReadBytes('\n')
 	if err != nil {
+		if errors.Is(err, io.EOF) {
+			return nil, ErrInvalidEnding
+		}
 		return nil, err
 	}
 
@@ -67,23 +92,85 @@ func (r *RespReader) readSimpleString() ([]byte, error) {
 	return line[:len(line)-2], nil
 }
 
-func (r *RespReader) readInteger() (int, error) {
-	line, err := r.rd.ReadBytes('\n')
+func (d *Decoder) readInteger() (int, error) {
+	line, err := d.readLine()
 	if err != nil {
 		return 0, err
 	}
 
-	// Command with integer cant be empty
-	if len(line) < 3 || line[len(line)-2] != '\r' {
+	i, err := strconv.ParseInt(string(line), 10, 64)
+	if errors.Is(err, strconv.ErrSyntax) {
 		return 0, ErrInvalidEnding
 	}
 
-	strNum := string(line[:len(line)-2])
+	return int(i), nil
+}
 
-	num, err := strconv.ParseInt(strNum, 10, 64)
+func (d *Decoder) readBulkString() ([]byte, error) {
+	size, err := d.readInteger()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return int(num), nil
+	if size == -1 {
+		return nil, nil
+	}
+
+	buf := make([]byte, size)
+	_, err = io.ReadFull(d.rd, buf)
+	if err != nil {
+		if errors.Is(err, io.ErrUnexpectedEOF) {
+			return nil, ErrInvalidEnding
+		}
+		return nil, err
+	}
+
+	endingBuf := make([]byte, 2)
+	_, err = io.ReadFull(d.rd, endingBuf)
+	if err != nil {
+		if errors.Is(err, io.EOF) {
+			return nil, ErrInvalidEnding
+		}
+		return nil, err
+	}
+
+	if !reflect.DeepEqual(endingBuf, []byte("\r\n")) {
+		return nil, ErrInvalidEnding
+	}
+
+	return buf, nil
+}
+
+func (d *Decoder) readArray() ([]Value, error) {
+	size, err := d.readInteger()
+	if err != nil {
+		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+			return nil, ErrInvalidEnding
+		}
+		return nil, err
+	}
+
+	if size == -1 {
+		return nil, nil
+	}
+
+	if size == 0 {
+		return []Value{}, nil
+	}
+
+	buf := make([]Value, 0, size)
+
+	for range size {
+		el, err := d.Read()
+		if err != nil {
+			if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+				return nil, ErrInvalidEnding
+			}
+			return nil, err
+		}
+
+		buf = append(buf, el)
+	}
+
+	return buf, nil
 }
