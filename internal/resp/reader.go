@@ -39,6 +39,7 @@ func (d *Decoder) Read() (Value, error) {
 
 		val.String = str
 		return val, nil
+
 	case TypeArray:
 		array, err := d.readArray()
 		if err != nil {
@@ -51,6 +52,7 @@ func (d *Decoder) Read() (Value, error) {
 
 		val.Array = array
 		return val, nil
+
 	case TypeInteger:
 		num, err := d.readInteger()
 		if err != nil {
@@ -59,6 +61,7 @@ func (d *Decoder) Read() (Value, error) {
 
 		val.Num = num
 		return val, nil
+
 	case TypeBulkString:
 		str, err := d.readBulkString()
 		if err != nil {
