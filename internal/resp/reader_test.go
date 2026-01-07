@@ -44,7 +44,7 @@ func runTest(t *testing.T, name string, input string, want resp.Value, wantErr e
 	})
 }
 
-func TestReadInt(t *testing.T) {
+func TestDecoder_ReadInt(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
@@ -61,7 +61,7 @@ func TestReadInt(t *testing.T) {
 	}
 }
 
-func TestReadSimpleString(t *testing.T) {
+func TestDecoder_ReadSimpleString(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
@@ -77,7 +77,7 @@ func TestReadSimpleString(t *testing.T) {
 	}
 }
 
-func TestReadBulkString(t *testing.T) {
+func TestDecoder_ReadBulkString(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
@@ -98,11 +98,11 @@ func TestReadBulkString(t *testing.T) {
 	}
 }
 
-func TestReadError(t *testing.T) {
+func TestDecoder_ReadError(t *testing.T) {
 	runTest(t, "Basic Error", "-Err msg\r\n", resp.Value{Type: resp.TypeError, String: []byte("Err msg")}, nil)
 }
 
-func TestReadArray(t *testing.T) {
+func TestDecoder_ReadArray(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
