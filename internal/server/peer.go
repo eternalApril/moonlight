@@ -2,6 +2,7 @@ package server
 
 import (
 	"net"
+	"sync"
 
 	"github.com/eternalApril/moonlight/internal/resp"
 )
@@ -10,6 +11,7 @@ type Peer struct {
 	conn   net.Conn
 	reader *resp.Decoder
 	writer *resp.Encoder
+	mu     sync.Mutex
 }
 
 func NewPeer(conn net.Conn) *Peer {
@@ -21,6 +23,8 @@ func NewPeer(conn net.Conn) *Peer {
 }
 
 func (p *Peer) Send(v resp.Value) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	return p.writer.Write(v)
 }
 
