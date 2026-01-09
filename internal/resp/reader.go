@@ -3,6 +3,7 @@ package resp
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"reflect"
 	"strconv"
@@ -176,4 +177,29 @@ func (d *Decoder) readArray() ([]Value, error) {
 	}
 
 	return buf, nil
+}
+
+func MakeSimpleString(s string) Value {
+	return Value{
+		Type:   TypeSimpleString,
+		String: []byte(s),
+	}
+}
+
+func MakeError(s string) Value {
+	return Value{
+		Type:   TypeError,
+		String: []byte(s),
+	}
+}
+
+func MakeErrorWrongNumberOfArguments(cmd string) Value {
+	return MakeError(fmt.Sprintf("wrong number of arguments for %s command", cmd))
+}
+
+func MakeBulkString(s string) Value {
+	return Value{
+		Type:   TypeBulkString,
+		String: []byte(s),
+	}
 }

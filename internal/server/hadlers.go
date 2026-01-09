@@ -1,38 +1,31 @@
 package server
 
 import (
-	"strings"
-
 	"github.com/eternalApril/moonlight/internal/resp"
-	"github.com/eternalApril/moonlight/internal/store"
 )
 
-type Engine struct {
-	commands map[string]Command
-	storage  *store.Storage
+func command(ctx *Context) resp.Value {
+	// must return docs in the future
+	return resp.MakeSimpleString("OK")
 }
 
-func NewEngine(s store.Storage) *Engine {
-	return &Engine{
-		commands: make(map[string]Command),
-		storage:  &s,
+func ping(ctx *Context) resp.Value {
+	// command takes zero or one arguments
+	if len(ctx.args) > 1 {
+		return resp.MakeErrorWrongNumberOfArguments("PING")
 	}
+
+	if len(ctx.args) == 1 {
+		return resp.MakeBulkString(string(ctx.args[0].String))
+	}
+
+	return resp.MakeSimpleString("PONG")
 }
 
-func (e *Engine) Register(name string, cmd Command) {
-	e.commands[strings.ToUpper(name)] = cmd
+func get(ctx *Context) resp.Value {
+	return resp.MakeSimpleString("GET")
 }
 
-func (e *Engine) Execute(name string, args []resp.Value) resp.Value {
-	cmd, ok := e.commands[strings.ToUpper(name)]
-	if !ok {
-		return resp.Value{} //resp.MakeError
-	}
-
-	ctx := &Context{
-		args:    args,
-		storage: e.storage,
-	}
-
-	return cmd.Execute(ctx)
+func set(ctx *Context) resp.Value {
+	return resp.MakeSimpleString("SET")
 }
