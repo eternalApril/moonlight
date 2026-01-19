@@ -1,44 +1,86 @@
 package resp
 
 import (
+	"bufio"
 	"io"
 	"strconv"
 )
 
 type Encoder struct {
-	writer io.Writer
+	writer *bufio.Writer
 }
 
 func NewEncoder(w io.Writer) *Encoder {
-	return &Encoder{writer: w}
+	return &Encoder{
+		writer: bufio.NewWriter(w)}
 }
 
+//nolint:gocyclo
 func (e *Encoder) Write(v Value) error {
-	var bytes []byte
-
 	switch v.Type {
 	case TypeInteger:
-		bytes = []byte(":" + strconv.Itoa(v.Num) + "\r\n")
+		if err := e.writer.WriteByte(':'); err != nil {
+			return err
+		}
+		e.appendInt(int64(v.Num))
+		if _, err := e.writer.WriteString("\r\n"); err != nil {
+			return err
+		}
 
 	case TypeSimpleString:
-		bytes = []byte("+" + string(v.String) + "\r\n")
+		if err := e.writer.WriteByte('+'); err != nil {
+			return err
+		}
+		if _, err := e.writer.Write(v.String); err != nil {
+			return err
+		}
+		if _, err := e.writer.WriteString("\r\n"); err != nil {
+			return err
+		}
 
 	case TypeError:
-		bytes = []byte("-" + string(v.String) + "\r\n")
+		if err := e.writer.WriteByte('-'); err != nil {
+			return err
+		}
+		if _, err := e.writer.Write(v.String); err != nil {
+			return err
+		}
+		if _, err := e.writer.WriteString("\r\n"); err != nil {
+			return err
+		}
 
 	case TypeBulkString:
 		if v.IsNull {
-			bytes = []byte("$-1\r\n")
+			if _, err := e.writer.WriteString("$-1\r\n"); err != nil {
+				return err
+			}
 		} else {
-			bytes = []byte("$" + strconv.Itoa(len(v.String)) + "\r\n" + string(v.String) + "\r\n")
+			if err := e.writer.WriteByte('$'); err != nil {
+				return err
+			}
+			e.appendInt(int64(len(v.String)))
+			if _, err := e.writer.WriteString("\r\n"); err != nil {
+				return err
+			}
+			if _, err := e.writer.Write(v.String); err != nil {
+				return err
+			}
+			if _, err := e.writer.WriteString("\r\n"); err != nil {
+				return err
+			}
 		}
 
 	case TypeArray:
 		if v.IsNull {
-			bytes = []byte("*-1\r\n")
+			if _, err := e.writer.WriteString("*-1\r\n"); err != nil {
+				return err
+			}
 		} else {
-			prefix := []byte("*" + strconv.Itoa(len(v.Array)) + "\r\n")
-			if _, err := e.writer.Write(prefix); err != nil {
+			if err := e.writer.WriteByte('*'); err != nil {
+				return err
+			}
+			e.appendInt(int64(len(v.Array)))
+			if _, err := e.writer.WriteString("\r\n"); err != nil {
 				return err
 			}
 
@@ -47,10 +89,14 @@ func (e *Encoder) Write(v Value) error {
 					return err
 				}
 			}
-
-			return nil
 		}
 	}
-	_, err := e.writer.Write(bytes)
-	return err
+
+	return e.writer.Flush()
+}
+
+func (e *Encoder) appendInt(n int64) {
+	b := e.writer.AvailableBuffer()
+	b = strconv.AppendInt(b, n, 10)
+	e.writer.Write(b) //nolint:errcheck
 }

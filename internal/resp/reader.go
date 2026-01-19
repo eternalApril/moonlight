@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"reflect"
 	"strconv"
 )
 
@@ -129,18 +128,11 @@ func (d *Decoder) readBulkString() ([]byte, error) {
 		return nil, err
 	}
 
-	endingBuf := make([]byte, 2)
-	_, err = io.ReadFull(d.rd, endingBuf)
-	if err != nil {
-		if errors.Is(err, io.EOF) {
-			return nil, ErrInvalidEnding
-		}
-		return nil, err
-	}
-
-	if !reflect.DeepEqual(endingBuf, []byte("\r\n")) {
+	ending, err := d.rd.Peek(2)
+	if err != nil || ending[0] != '\r' || ending[1] != '\n' {
 		return nil, ErrInvalidEnding
 	}
+	d.rd.Discard(2) //nolint:errcheck
 
 	return buf, nil
 }
