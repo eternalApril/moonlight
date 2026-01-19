@@ -23,9 +23,28 @@ func ping(ctx *Context) resp.Value {
 }
 
 func get(ctx *Context) resp.Value {
-	return resp.MakeSimpleString("GET")
+	if len(ctx.args) != 1 {
+		return resp.MakeErrorWrongNumberOfArguments("GET")
+	}
+
+	value, ok := (*ctx.storage).Get(string(ctx.args[0].String))
+	if !ok {
+		return resp.MakeNilBulkString()
+	}
+
+	return resp.MakeBulkString(value)
 }
 
 func set(ctx *Context) resp.Value {
-	return resp.MakeSimpleString("SET")
+	// implement the processing of all flags and TTL
+	if len(ctx.args) != 2 {
+		return resp.MakeErrorWrongNumberOfArguments("SET")
+	}
+
+	key := ctx.args[0].String
+	value := ctx.args[1].String
+
+	(*ctx.storage).Set(string(key), string(value))
+
+	return resp.MakeSimpleString("OK")
 }

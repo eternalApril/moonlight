@@ -203,3 +203,10 @@ func MakeBulkString(s string) Value {
 		String: []byte(s),
 	}
 }
+
+func MakeNilBulkString() Value {
+	return Value{
+		Type:   TypeBulkString,
+		IsNull: true,
+	}
+}
