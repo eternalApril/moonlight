@@ -1,0 +1,58 @@
+package store
+
+import (
+	"fmt"
+	"math/rand"
+	"sync"
+	"testing"
+	"time"
+)
+
+func TestMapStore_Concurrency(t *testing.T) {
+	s := NewMapStore()
+	const workers = 100
+	const opsPerWorker = 100000
+
+	var wg sync.WaitGroup
+	wg.Add(workers)
+
+	for i := 0; i < workers; i++ {
+		go func(workerID int) {
+			defer wg.Done()
+			r := rand.New(rand.NewSource(time.Now().UnixNano() + int64(workerID)))
+
+			for j := 0; j < opsPerWorker; j++ {
+				key := fmt.Sprintf("key-%d", r.Intn(50))
+				val := fmt.Sprintf("val-%d", j)
+
+				op := r.Intn(3)
+				switch op {
+				case 0:
+					s.Set(key, val)
+				case 1:
+					s.Get(key)
+				case 2:
+					s.Delete(key)
+				}
+			}
+		}(i)
+	}
+
+	wg.Wait()
+}
+
+func FuzzMapStore(f *testing.F) {
+	s := NewMapStore()
+
+	f.Add("key1", "val1")
+	f.Add("special", "!@#$%^&*()")
+
+	f.Fuzz(func(t *testing.T, key string, val string) {
+		s.Set(key, val)
+
+		v, ok := s.Get(key)
+		if !ok || v != val {
+			t.Errorf("Get failed after Set: key=%q, val=%q", key, val)
+		}
+	})
+}

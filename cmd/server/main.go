@@ -45,7 +45,10 @@ func handleConnection(conn net.Conn, db store.Storage) {
 }
 
 func main() {
-	db := store.NewMemoryStore()
+	db, err := store.NewShardedMapStore(32)
+	if err != nil {
+		panic(err)
+	}
 
 	listener, err := net.Listen("tcp", "0.0.0.0:6380")
 	if err != nil {
