@@ -27,8 +27,12 @@ func (m *MapStore) Set(key, value string) {
 	m.mu.Unlock()
 }
 
-func (m *MapStore) Delete(key string) {
+func (m *MapStore) Delete(key string) bool {
 	m.mu.Lock()
-	delete(m.data, key)
-	m.mu.Unlock()
+	defer m.mu.Unlock()
+	if _, ok := m.data[key]; ok {
+		delete(m.data, key)
+		return true
+	}
+	return false
 }

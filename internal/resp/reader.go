@@ -80,7 +80,7 @@ func (d *Decoder) Read() (Value, error) {
 }
 
 func (d *Decoder) readLine() ([]byte, error) {
-	line, err := d.rd.ReadBytes('\n')
+	line, err := d.rd.ReadSlice('\n')
 	if err != nil {
 		if errors.Is(err, io.EOF) {
 			return nil, ErrInvalidEnding
@@ -200,5 +200,12 @@ func MakeNilBulkString() Value {
 	return Value{
 		Type:   TypeBulkString,
 		IsNull: true,
+	}
+}
+
+func MakeInteger(n int) Value {
+	return Value{
+		Type: TypeInteger,
+		Num:  n,
 	}
 }

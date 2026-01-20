@@ -48,6 +48,6 @@ func (s *ShardedMapStore) Set(key, value string) {
 	s.shards[s.getShardIndex(key)].Set(key, value)
 }
 
-func (s *ShardedMapStore) Delete(key string) {
-	s.shards[s.getShardIndex(key)].Delete(key)
+func (s *ShardedMapStore) Delete(key string) bool {
+	return s.shards[s.getShardIndex(key)].Delete(key)
 }

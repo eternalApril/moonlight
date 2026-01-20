@@ -48,3 +48,18 @@ func set(ctx *Context) resp.Value {
 
 	return resp.MakeSimpleString("OK")
 }
+
+func del(ctx *Context) resp.Value {
+	if len(ctx.args) < 1 {
+		return resp.MakeErrorWrongNumberOfArguments("DEL")
+	}
+
+	wasDeleted := 0
+	for _, key := range ctx.args {
+		if (*ctx.storage).Delete(string(key.String)) {
+			wasDeleted++
+		}
+	}
+
+	return resp.MakeInteger(wasDeleted)
+}

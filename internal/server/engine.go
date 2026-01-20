@@ -30,8 +30,9 @@ func (e *Engine) register(name string, cmd Command) {
 func (e *Engine) registerBasicCommand() {
 	e.register("GET", CommandFunc(get))
 	e.register("SET", CommandFunc(set))
-	e.register("COMMAND", CommandFunc(command))
+	e.register("DEL", CommandFunc(del))
 	e.register("PING", CommandFunc(ping))
+	e.register("COMMAND", CommandFunc(command))
 }
 
 func (e *Engine) Execute(name string, args []resp.Value) resp.Value {
