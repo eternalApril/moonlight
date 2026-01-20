@@ -44,7 +44,8 @@ func set(ctx *Context) resp.Value {
 	key := ctx.args[0].String
 	value := ctx.args[1].String
 
-	(*ctx.storage).Set(string(key), string(value))
+	// add flag parsing and ttl dilution
+	(*ctx.storage).Set(string(key), string(value), 0)
 
 	return resp.MakeSimpleString("OK")
 }

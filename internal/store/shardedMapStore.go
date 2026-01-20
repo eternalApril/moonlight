@@ -4,6 +4,7 @@ import (
 	"errors"
 	"hash/fnv"
 	"math/bits"
+	"time"
 )
 
 type ShardedMapStore struct {
@@ -44,8 +45,8 @@ func (s *ShardedMapStore) Get(key string) (string, bool) {
 	return s.shards[s.getShardIndex(key)].Get(key)
 }
 
-func (s *ShardedMapStore) Set(key, value string) {
-	s.shards[s.getShardIndex(key)].Set(key, value)
+func (s *ShardedMapStore) Set(key, value string, ttl time.Duration) {
+	s.shards[s.getShardIndex(key)].Set(key, value, ttl)
 }
 
 func (s *ShardedMapStore) Delete(key string) bool {

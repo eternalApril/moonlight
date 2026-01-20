@@ -37,9 +37,6 @@ func TestNewShardedMapStore(t *testing.T) {
 				if err != nil {
 					t.Errorf("unexpected error for %d shards: %v", tt.shards, err)
 				}
-				if s == nil {
-					t.Error("expected struct, got nil")
-				}
 				if uint(len(s.shards)) != tt.shards {
 					t.Errorf("expected %d shards created, got %d", tt.shards, len(s.shards))
 				}
@@ -53,13 +50,13 @@ func TestNewShardedMapStore(t *testing.T) {
 
 func TestShardedMapStore_Distribution(t *testing.T) {
 	shardsCount := uint(16)
-	store, _ := NewShardedMapStore(shardsCount)
+	store, _ := NewShardedMapStore(shardsCount) //nolint:errcheck
 
 	keysPopulated := make(map[int]int)
 
 	for i := 0; i < 100; i++ {
 		key := fmt.Sprintf("key-%d", i)
-		store.Set(key, "val")
+		store.Set(key, "val", 0)
 
 		shardIdx := store.getShardIndex(key)
 
@@ -75,7 +72,7 @@ func TestShardedMapStore_Distribution(t *testing.T) {
 }
 
 func TestShardedMapStore_Concurrent(t *testing.T) {
-	store, _ := NewShardedMapStore(16)
+	store, _ := NewShardedMapStore(16) //nolint:errcheck
 	var wg sync.WaitGroup
 
 	workers := 100
@@ -93,7 +90,7 @@ func TestShardedMapStore_Concurrent(t *testing.T) {
 
 				switch action {
 				case 0:
-					store.Set(key, fmt.Sprintf("val-%d", j))
+					store.Set(key, fmt.Sprintf("val-%d", j), 0)
 				case 1:
 					store.Get(key)
 				case 2:
@@ -110,10 +107,10 @@ func FuzzSharedMapStore(f *testing.F) {
 	f.Add("key1", "val1")
 	f.Add("special", "!@#$%^&*()")
 
-	s, _ := NewShardedMapStore(8)
+	s, _ := NewShardedMapStore(8) //nolint:errcheck
 
 	f.Fuzz(func(t *testing.T, key string, val string) {
-		s.Set(key, val)
+		s.Set(key, val, 0)
 
 		v, ok := s.Get(key)
 		if !ok || v != val {
