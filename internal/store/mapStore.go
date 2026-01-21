@@ -75,3 +75,56 @@ func (m *MapStore) Delete(key string) bool {
 	}
 	return false
 }
+
+// Expiry returns the remaining lifetime and status code in the second return value.
+//
+// The key does not exist (or expired)(-2).
+// The key exists but has no expiration(-1).
+// The key exists and has an expiration date (ttl is returned in time.Duration)(1)
+func (m *MapStore) Expiry(key string) (time.Duration, int) {
+	m.mu.RLock()
+
+	_, ok := m.data[key]
+	exp, hasExp := m.expires[key]
+
+	m.mu.RUnlock()
+
+	// key does not exist
+	if !ok {
+		return 0, -2
+	}
+
+	// key without TTL
+	if !hasExp {
+		return 0, -1
+	}
+
+	now := time.Now().UnixNano()
+
+	if now > exp {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+
+		if _, ok = m.data[key]; !ok {
+			return 0, -2
+		}
+
+		exp, hasExp = m.expires[key]
+		if !hasExp {
+			return 0, -1
+		}
+
+		now = time.Now().UnixNano()
+
+		// key expired
+		if now > exp {
+			delete(m.data, key)
+			delete(m.expires, key)
+			return 0, -2
+		}
+
+		return time.Duration(exp - now), 1
+	}
+
+	return time.Duration(exp - now), 1
+}

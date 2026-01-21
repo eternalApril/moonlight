@@ -33,6 +33,8 @@ func (e *Engine) registerBasicCommand() {
 	e.register("DEL", CommandFunc(del))
 	e.register("PING", CommandFunc(ping))
 	e.register("COMMAND", CommandFunc(command))
+	e.register("TTL", CommandFunc(ttl))
+	e.register("PTTL", CommandFunc(pttl))
 }
 
 func (e *Engine) Execute(name string, args []resp.Value) resp.Value {

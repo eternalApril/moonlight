@@ -52,3 +52,7 @@ func (s *ShardedMapStore) Set(key, value string, ttl time.Duration) {
 func (s *ShardedMapStore) Delete(key string) bool {
 	return s.shards[s.getShardIndex(key)].Delete(key)
 }
+
+func (s *ShardedMapStore) Expiry(key string) (time.Duration, int) {
+	return s.shards[s.getShardIndex(key)].Expiry(key)
+}
