@@ -55,11 +55,11 @@ func (m *MapStore) Set(key, value string, ttl time.Duration) {
 
 	m.data[key] = value
 
-	if ttl > 0 {
-		m.expires[key] = time.Now().Add(ttl).UnixNano()
-	} else {
+	if ttl == 0 {
 		// deleting the expiration date if it was earlier
 		delete(m.expires, key)
+	} else {
+		m.expires[key] = time.Now().Add(ttl).UnixNano()
 	}
 
 	m.mu.Unlock()

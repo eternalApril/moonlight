@@ -45,8 +45,8 @@ func set(ctx *Context) resp.Value {
 		return resp.MakeErrorWrongNumberOfArguments("SET")
 	}
 
-	key := ctx.args[0].String
-	value := ctx.args[1].String
+	key := string(ctx.args[0].String)
+	value := string(ctx.args[1].String)
 
 	var (
 		nx, xx bool
@@ -101,7 +101,8 @@ func set(ctx *Context) resp.Value {
 			fmt.Printf("TTL: %v\n", TTL)
 
 			if TTL <= 0 && (arg == "EXAT" || arg == "PXAT") {
-				// idk rn
+				(*ctx.storage).Set(key, value, -1)
+				return resp.MakeSimpleString("OK")
 			}
 
 			hasTTL = true
@@ -112,7 +113,7 @@ func set(ctx *Context) resp.Value {
 	}
 
 	// TODO flags realize
-	(*ctx.storage).Set(string(key), string(value), 0)
+	(*ctx.storage).Set(key, value, 0)
 
 	return resp.MakeSimpleString("OK")
 }
