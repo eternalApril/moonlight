@@ -11,7 +11,7 @@ const (
 type Value struct {
 	String  []byte // SimpleString, Error, BulkString
 	Array   []Value
-	Integer int // Integer
+	Integer int64 // Integer
 	Type    byte
 	IsNull  bool // For nil BulkString and nil Array
 }

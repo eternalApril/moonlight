@@ -95,7 +95,7 @@ func (d *Decoder) readLine() ([]byte, error) {
 	return line[:len(line)-2], nil
 }
 
-func (d *Decoder) readInteger() (int, error) {
+func (d *Decoder) readInteger() (int64, error) {
 	line, err := d.readLine()
 	if err != nil {
 		return 0, err
@@ -106,7 +106,7 @@ func (d *Decoder) readInteger() (int, error) {
 		return 0, ErrInvalidEnding
 	}
 
-	return int(i), nil
+	return i, nil
 }
 
 func (d *Decoder) readBulkString() ([]byte, error) {
@@ -203,7 +203,7 @@ func MakeNilBulkString() Value {
 	}
 }
 
-func MakeInteger(n int) Value {
+func MakeInteger(n int64) Value {
 	return Value{
 		Type:    TypeInteger,
 		Integer: n,

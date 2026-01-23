@@ -135,7 +135,7 @@ func del(ctx *Context) resp.Value {
 		return resp.MakeErrorWrongNumberOfArguments("DEL")
 	}
 
-	wasDeleted := 0
+	var wasDeleted int64 = 0
 	for _, key := range ctx.args {
 		if (*ctx.storage).Delete(string(key.String)) {
 			wasDeleted++
@@ -154,10 +154,10 @@ func ttl(ctx *Context) resp.Value {
 	duration, code := (*ctx.storage).Expiry(key)
 
 	if code < 0 {
-		return resp.MakeInteger(code)
+		return resp.MakeInteger(int64(code))
 	}
 
-	return resp.MakeInteger(int(duration.Seconds()))
+	return resp.MakeInteger(int64(duration.Seconds()))
 }
 
 func pttl(ctx *Context) resp.Value {
@@ -169,8 +169,8 @@ func pttl(ctx *Context) resp.Value {
 	duration, code := (*ctx.storage).Expiry(key)
 
 	if code < 0 {
-		return resp.MakeInteger(code)
+		return resp.MakeInteger(int64(code))
 	}
 
-	return resp.MakeInteger(int(duration.Milliseconds()))
+	return resp.MakeInteger(duration.Milliseconds())
 }
