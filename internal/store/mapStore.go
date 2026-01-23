@@ -50,19 +50,47 @@ func (m *MapStore) Get(key string) (string, bool) {
 	return val, true
 }
 
-func (m *MapStore) Set(key, value string, ttl time.Duration) {
+func (m *MapStore) Set(key, value string, options SetOptions) bool {
 	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	_, exists := m.data[key]
+	if exists {
+		exp, hasExp := m.expires[key]
+		if hasExp && time.Now().UnixNano() > exp {
+			// key exists but is expired, clean it up now so logic below treats it as new
+			delete(m.data, key)
+			delete(m.expires, key)
+			exists = false
+		}
+	}
+
+	if options.NX && exists {
+		return false
+	}
+
+	if options.XX && !exists {
+		return false
+	}
 
 	m.data[key] = value
 
-	if ttl == 0 {
-		// deleting the expiration date if it was earlier
-		delete(m.expires, key)
+	if options.KeepTTL {
+		// if KEEPTTL is set, we do nothing to m.expires (retain existing)
+		// however, if the key is new (freshly created), KEEPTTL behaves like no TTL
+		if !exists {
+			delete(m.expires, key)
+		}
 	} else {
-		m.expires[key] = time.Now().Add(ttl).UnixNano()
+		if options.TTL == 0 {
+			// no TTL provided (and not KEEPTTL), so we remove any existing expiration (persist)
+			delete(m.expires, key)
+		} else {
+			m.expires[key] = time.Now().Add(options.TTL).UnixNano()
+		}
 	}
 
-	m.mu.Unlock()
+	return true
 }
 
 func (m *MapStore) Delete(key string) bool {

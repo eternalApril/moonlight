@@ -45,8 +45,8 @@ func (s *ShardedMapStore) Get(key string) (string, bool) {
 	return s.shards[s.getShardIndex(key)].Get(key)
 }
 
-func (s *ShardedMapStore) Set(key, value string, ttl time.Duration) {
-	s.shards[s.getShardIndex(key)].Set(key, value, ttl)
+func (s *ShardedMapStore) Set(key, value string, options SetOptions) bool {
+	return s.shards[s.getShardIndex(key)].Set(key, value, options)
 }
 
 func (s *ShardedMapStore) Delete(key string) bool {

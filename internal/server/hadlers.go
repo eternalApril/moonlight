@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/eternalApril/moonlight/internal/resp"
+	"github.com/eternalApril/moonlight/internal/store"
 )
 
 func command(ctx *Context) resp.Value {
@@ -48,28 +49,34 @@ func set(ctx *Context) resp.Value {
 	key := string(ctx.args[0].String)
 	value := string(ctx.args[1].String)
 
-	var (
-		nx, xx bool
-		TTL    time.Duration
-		hasTTL bool
-	)
+	options := store.SetOptions{}
+
+	// flag tracking to prevent syntax errors
+	var hasTTL bool
 
 	for i := 2; i != len(ctx.args); i++ {
 		arg := strings.ToUpper(string(ctx.args[i].String))
 
 		switch arg {
 		case "NX":
-			if xx {
+			if options.XX {
 				return resp.MakeError("NX cannot use with XX")
 			}
+			options.NX = true
 
-			nx = true
 		case "XX":
-			if nx {
+			if options.NX {
 				return resp.MakeError("XX cannot use with NX")
 			}
+			options.XX = true
 
-			xx = true
+		case "KEEPTTL":
+			if hasTTL {
+				return resp.MakeError("TTL already specified")
+			}
+			options.KeepTTL = true
+			hasTTL = true
+
 		case "EX", "PX", "EXAT", "PXAT":
 			if hasTTL {
 				return resp.MakeError("cannot specify the TTL twice")
@@ -85,26 +92,28 @@ func set(ctx *Context) resp.Value {
 				return resp.MakeError("value TTL is not integer or out of range")
 			}
 
+			var ttlDuration time.Duration
+
 			switch arg {
 			case "EX":
-				TTL = time.Duration(valTTL) * time.Second
+				ttlDuration = time.Duration(valTTL) * time.Second
 			case "PX":
-				TTL = time.Duration(valTTL) * time.Millisecond
+				ttlDuration = time.Duration(valTTL) * time.Millisecond
 			case "EXAT":
 				expireAt := time.Unix(valTTL, 0)
-				TTL = time.Until(expireAt)
+				ttlDuration = time.Until(expireAt)
 			case "PXAT":
 				expireAt := time.UnixMilli(valTTL)
-				TTL = time.Until(expireAt)
+				ttlDuration = time.Until(expireAt)
 			}
 
-			fmt.Printf("TTL: %v\n", TTL)
-
-			if TTL <= 0 && (arg == "EXAT" || arg == "PXAT") {
-				(*ctx.storage).Set(key, value, -1)
+			if ttlDuration <= 0 && (arg == "EXAT" || arg == "PXAT") {
+				options.TTL = time.Duration(1) * time.Nanosecond
+				(*ctx.storage).Set(key, value, options)
 				return resp.MakeSimpleString("OK")
 			}
 
+			options.TTL = ttlDuration
 			hasTTL = true
 			i++
 		default:
@@ -112,8 +121,11 @@ func set(ctx *Context) resp.Value {
 		}
 	}
 
-	// TODO flags realize
-	(*ctx.storage).Set(key, value, 0)
+	ok := (*ctx.storage).Set(key, value, options)
+
+	if !ok {
+		return resp.MakeNilBulkString()
+	}
 
 	return resp.MakeSimpleString("OK")
 }
@@ -134,9 +146,31 @@ func del(ctx *Context) resp.Value {
 }
 
 func ttl(ctx *Context) resp.Value {
-	return resp.Value{}
+	if len(ctx.args) != 1 {
+		return resp.MakeErrorWrongNumberOfArguments("TTL")
+	}
+
+	key := string(ctx.args[0].String)
+	duration, code := (*ctx.storage).Expiry(key)
+
+	if code < 0 {
+		return resp.MakeInteger(code)
+	}
+
+	return resp.MakeInteger(int(duration.Seconds()))
 }
 
 func pttl(ctx *Context) resp.Value {
-	return resp.Value{}
+	if len(ctx.args) != 1 {
+		return resp.MakeErrorWrongNumberOfArguments("PTTL")
+	}
+
+	key := string(ctx.args[0].String)
+	duration, code := (*ctx.storage).Expiry(key)
+
+	if code < 0 {
+		return resp.MakeInteger(code)
+	}
+
+	return resp.MakeInteger(int(duration.Milliseconds()))
 }
