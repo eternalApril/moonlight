@@ -23,7 +23,12 @@ func BenchmarkStorage(b *testing.B) {
 
 	for name, s := range implementations {
 		b.Run(fmt.Sprintf("%s/ReadOnly", name), func(b *testing.B) {
-			s.Set("bench_key", "value", 0)
+			s.Set("bench_key", "value", SetOptions{
+				TTL:     0,
+				KeepTTL: false,
+				NX:      false,
+				XX:      false,
+			})
 			b.ResetTimer()
 			b.RunParallel(func(pb *testing.PB) {
 				for pb.Next() {
@@ -35,7 +40,12 @@ func BenchmarkStorage(b *testing.B) {
 		b.Run(fmt.Sprintf("%s/Mixed90-10", name), func(b *testing.B) {
 			keyCount := 1000
 			for i := 0; i < keyCount; i++ {
-				s.Set(fmt.Sprintf("key%d", i), "val", 0)
+				s.Set(fmt.Sprintf("key%d", i), "val", SetOptions{
+					TTL:     0,
+					KeepTTL: false,
+					NX:      false,
+					XX:      false,
+				})
 			}
 			b.ResetTimer()
 			b.RunParallel(func(pb *testing.PB) {
@@ -43,7 +53,12 @@ func BenchmarkStorage(b *testing.B) {
 				for pb.Next() {
 					key := fmt.Sprintf("key%d", i%keyCount)
 					if i%10 == 0 {
-						s.Set(key, "new_val", 0)
+						s.Set(key, "new_val", SetOptions{
+							TTL:     0,
+							KeepTTL: false,
+							NX:      false,
+							XX:      false,
+						})
 					} else {
 						s.Get(key)
 					}
@@ -60,7 +75,12 @@ func BenchmarkStorage(b *testing.B) {
 				for pb.Next() {
 					key := fmt.Sprintf("key%d", i%keyCount)
 					if i%2 == 0 {
-						s.Set(key, "val", 0)
+						s.Set(key, "val", SetOptions{
+							TTL:     0,
+							KeepTTL: false,
+							NX:      false,
+							XX:      false,
+						})
 					} else {
 						s.Get(key)
 					}

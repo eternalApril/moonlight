@@ -79,7 +79,7 @@ func set(ctx *Context) resp.Value {
 
 		case "EX", "PX", "EXAT", "PXAT":
 			if hasTTL {
-				return resp.MakeError("cannot specify the TTL twice")
+				return resp.MakeError("TTL already specified")
 			}
 
 			if i+1 >= len(ctx.args) {

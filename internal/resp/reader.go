@@ -59,7 +59,7 @@ func (d *Decoder) Read() (Value, error) {
 			return Value{}, err
 		}
 
-		val.Num = num
+		val.Integer = num
 		return val, nil
 
 	case TypeBulkString:
@@ -205,7 +205,7 @@ func MakeNilBulkString() Value {
 
 func MakeInteger(n int) Value {
 	return Value{
-		Type: TypeInteger,
-		Num:  n,
+		Type:    TypeInteger,
+		Integer: n,
 	}
 }

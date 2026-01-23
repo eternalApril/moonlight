@@ -16,12 +16,12 @@ func TestEncoder_Write(t *testing.T) {
 	}{
 		{
 			name:     "Integer positive",
-			input:    resp.Value{Type: resp.TypeInteger, Num: 100},
+			input:    resp.Value{Type: resp.TypeInteger, Integer: 100},
 			expected: ":100\r\n",
 		},
 		{
 			name:     "Integer negative",
-			input:    resp.Value{Type: resp.TypeInteger, Num: -42},
+			input:    resp.Value{Type: resp.TypeInteger, Integer: -42},
 			expected: ":-42\r\n",
 		},
 		{
@@ -75,7 +75,7 @@ func TestEncoder_Write(t *testing.T) {
 			input: resp.Value{
 				Type: resp.TypeArray,
 				Array: []resp.Value{
-					{Type: resp.TypeInteger, Num: 1},
+					{Type: resp.TypeInteger, Integer: 1},
 					{Type: resp.TypeArray, Array: []resp.Value{
 						{Type: resp.TypeSimpleString, String: []byte("inner")},
 					}},

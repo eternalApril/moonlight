@@ -9,9 +9,9 @@ const (
 )
 
 type Value struct {
-	Type   byte
-	Num    int    // Integer
-	String []byte // SimpleString, Error, BulkString
-	Array  []Value
-	IsNull bool // For nil BulkString and nil Array
+	String  []byte // SimpleString, Error, BulkString
+	Array   []Value
+	Integer int // Integer
+	Type    byte
+	IsNull  bool // For nil BulkString and nil Array
 }

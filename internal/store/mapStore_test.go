@@ -28,7 +28,12 @@ func TestMapStore_Concurrency(t *testing.T) {
 				op := r.Intn(3)
 				switch op {
 				case 0:
-					s.Set(key, val, 0)
+					s.Set(key, val, SetOptions{
+						TTL:     0,
+						KeepTTL: false,
+						NX:      false,
+						XX:      false,
+					})
 				case 1:
 					s.Get(key)
 				case 2:
@@ -48,7 +53,12 @@ func FuzzMapStore(f *testing.F) {
 	f.Add("special", "!@#$%^&*()")
 
 	f.Fuzz(func(t *testing.T, key string, val string) {
-		s.Set(key, val, 0)
+		s.Set(key, val, SetOptions{
+			TTL:     0,
+			KeepTTL: false,
+			NX:      false,
+			XX:      false,
+		})
 
 		v, ok := s.Get(key)
 		if !ok || v != val {

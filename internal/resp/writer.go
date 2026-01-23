@@ -22,7 +22,7 @@ func (e *Encoder) Write(v Value) error {
 		if err := e.writer.WriteByte(':'); err != nil {
 			return err
 		}
-		e.appendInt(int64(v.Num))
+		e.appendInt(int64(v.Integer))
 		if _, err := e.writer.WriteString("\r\n"); err != nil {
 			return err
 		}

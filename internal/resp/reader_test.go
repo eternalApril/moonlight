@@ -30,8 +30,8 @@ func runTest(t *testing.T, name string, input string, want resp.Value, wantErr e
 			t.Errorf("got type %q, want %q", got.Type, want.Type)
 		}
 
-		if got.Num != want.Num {
-			t.Errorf("got num %v, want %v", got.Num, want.Num)
+		if got.Integer != want.Integer {
+			t.Errorf("got num %v, want %v", got.Integer, want.Integer)
 		}
 
 		if !reflect.DeepEqual(got.String, want.String) {
@@ -51,8 +51,8 @@ func TestDecoder_ReadInt(t *testing.T) {
 		want    resp.Value
 		wantErr error
 	}{
-		{"Valid positive", ":1000\r\n", resp.Value{Type: resp.TypeInteger, Num: 1000}, nil},
-		{"Valid negative", ":-15\r\n", resp.Value{Type: resp.TypeInteger, Num: -15}, nil},
+		{"Valid positive", ":1000\r\n", resp.Value{Type: resp.TypeInteger, Integer: 1000}, nil},
+		{"Valid negative", ":-15\r\n", resp.Value{Type: resp.TypeInteger, Integer: -15}, nil},
 		{"Invalid ending", ":1000\n", resp.Value{}, resp.ErrInvalidEnding},
 	}
 
@@ -140,7 +140,7 @@ func TestDecoder_ReadArray(t *testing.T) {
 			want: resp.Value{
 				Type: resp.TypeArray,
 				Array: []resp.Value{
-					{Type: resp.TypeInteger, Num: 1},
+					{Type: resp.TypeInteger, Integer: 1},
 					{Type: resp.TypeSimpleString, String: []byte("OK")},
 					{Type: resp.TypeBulkString, String: []byte("test")},
 				},
@@ -155,7 +155,7 @@ func TestDecoder_ReadArray(t *testing.T) {
 					{
 						Type: resp.TypeArray,
 						Array: []resp.Value{
-							{Type: resp.TypeInteger, Num: 5},
+							{Type: resp.TypeInteger, Integer: 5},
 						},
 					},
 					{Type: resp.TypeSimpleString, String: []byte("inner")},

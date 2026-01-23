@@ -56,7 +56,12 @@ func TestShardedMapStore_Distribution(t *testing.T) {
 
 	for i := 0; i < 100; i++ {
 		key := fmt.Sprintf("key-%d", i)
-		store.Set(key, "val", 0)
+		store.Set(key, "val", SetOptions{
+			TTL:     0,
+			KeepTTL: false,
+			NX:      false,
+			XX:      false,
+		})
 
 		shardIdx := store.getShardIndex(key)
 
@@ -90,7 +95,12 @@ func TestShardedMapStore_Concurrent(t *testing.T) {
 
 				switch action {
 				case 0:
-					store.Set(key, fmt.Sprintf("val-%d", j), 0)
+					store.Set(key, fmt.Sprintf("val-%d", j), SetOptions{
+						TTL:     0,
+						KeepTTL: false,
+						NX:      false,
+						XX:      false,
+					})
 				case 1:
 					store.Get(key)
 				case 2:
@@ -110,7 +120,12 @@ func FuzzSharedMapStore(f *testing.F) {
 	s, _ := NewShardedMapStore(8) //nolint:errcheck
 
 	f.Fuzz(func(t *testing.T, key string, val string) {
-		s.Set(key, val, 0)
+		s.Set(key, val, SetOptions{
+			TTL:     0,
+			KeepTTL: false,
+			NX:      false,
+			XX:      false,
+		})
 
 		v, ok := s.Get(key)
 		if !ok || v != val {
