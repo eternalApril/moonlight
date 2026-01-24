@@ -174,3 +174,15 @@ func pttl(ctx *Context) resp.Value {
 
 	return resp.MakeInteger(duration.Milliseconds())
 }
+
+func persist(ctx *Context) resp.Value {
+	if len(ctx.args) != 1 {
+		return resp.MakeErrorWrongNumberOfArguments("PERSIST")
+	}
+
+	key := string(ctx.args[0].String)
+
+	code := (*ctx.storage).Persist(key)
+
+	return resp.MakeInteger(code)
+}

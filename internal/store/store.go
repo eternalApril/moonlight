@@ -18,4 +18,6 @@ type Storage interface {
 	Delete(key string) bool
 
 	Expiry(key string) (time.Duration, int)
+
+	Persist(key string) int64
 }

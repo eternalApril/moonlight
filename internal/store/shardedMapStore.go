@@ -56,3 +56,7 @@ func (s *ShardedMapStore) Delete(key string) bool {
 func (s *ShardedMapStore) Expiry(key string) (time.Duration, int) {
 	return s.shards[s.getShardIndex(key)].Expiry(key)
 }
+
+func (s *ShardedMapStore) Persist(key string) int64 {
+	return s.shards[s.getShardIndex(key)].Persist(key)
+}

@@ -35,6 +35,7 @@ func (e *Engine) registerBasicCommand() {
 	e.register("COMMAND", CommandFunc(command))
 	e.register("TTL", CommandFunc(ttl))
 	e.register("PTTL", CommandFunc(pttl))
+	e.register("PERSIST", CommandFunc(persist))
 }
 
 func (e *Engine) Execute(name string, args []resp.Value) resp.Value {

@@ -156,3 +156,31 @@ func (m *MapStore) Expiry(key string) (time.Duration, int) {
 
 	return time.Duration(exp - now), 1
 }
+
+func (m *MapStore) Persist(key string) int64 {
+	m.mu.RLock()
+
+	_, ok := m.data[key]
+	_, hasExp := m.expires[key]
+
+	m.mu.RUnlock()
+
+	if !ok || !hasExp {
+		return 0
+	}
+
+	m.mu.Lock()
+
+	_, ok = m.data[key]
+	_, hasExp = m.expires[key]
+
+	if !ok || !hasExp {
+		return 0
+	}
+
+	delete(m.expires, key)
+
+	m.mu.Unlock()
+
+	return 1
+}
