@@ -20,4 +20,6 @@ type Storage interface {
 	Expiry(key string) (time.Duration, int)
 
 	Persist(key string) int64
+
+	DeleteExpired(limit int) float64
 }

@@ -5,6 +5,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/eternalApril/moonlight/internal/config"
 	"github.com/eternalApril/moonlight/internal/resp"
 	"github.com/eternalApril/moonlight/internal/server"
 	"github.com/eternalApril/moonlight/internal/store"
@@ -14,7 +15,10 @@ func handleConnection(conn net.Conn, db store.Storage) {
 	peer := server.NewPeer(conn)
 	defer peer.Close()
 
-	engine := server.NewEngine(db)
+	// TODO add config file
+	defaultCFG := config.DefaultGCConfig()
+
+	engine := server.NewEngine(db, defaultCFG)
 
 	for {
 		cmdValue, err := peer.ReadCommand()

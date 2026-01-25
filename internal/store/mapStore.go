@@ -184,3 +184,32 @@ func (m *MapStore) Persist(key string) int64 {
 
 	return 1
 }
+
+func (m *MapStore) DeleteExpired(limit int) float64 {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if len(m.expires) == 0 {
+		return 0.0
+	}
+
+	checked := 0
+	expired := 0
+	now := time.Now().UnixNano()
+
+	// go map iteration is randomized by design
+	for key, expTime := range m.expires {
+		checked++
+		if now > expTime {
+			delete(m.data, key)
+			delete(m.expires, key)
+			expired++
+		}
+
+		if checked >= limit {
+			break
+		}
+	}
+
+	return float64(expired) / float64(checked)
+}

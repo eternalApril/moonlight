@@ -4,6 +4,7 @@ import (
 	"errors"
 	"hash/fnv"
 	"math/bits"
+	"sync"
 	"time"
 )
 
@@ -59,4 +60,29 @@ func (s *ShardedMapStore) Expiry(key string) (time.Duration, int) {
 
 func (s *ShardedMapStore) Persist(key string) int64 {
 	return s.shards[s.getShardIndex(key)].Persist(key)
+}
+
+func (s *ShardedMapStore) DeleteExpired(limit int) float64 {
+	var wg sync.WaitGroup
+	var totalRatio float64
+	var mu sync.Mutex // protects totalRatio
+
+	shardCount := len(s.shards)
+	wg.Add(shardCount)
+
+	for _, shard := range s.shards {
+		go func(m *MapStore) {
+			ratio := m.DeleteExpired(limit)
+
+			mu.Lock()
+			totalRatio += ratio
+			mu.Unlock()
+
+			wg.Done()
+		}(shard)
+	}
+
+	wg.Wait()
+
+	return totalRatio / float64(shardCount)
 }

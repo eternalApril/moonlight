@@ -3,7 +3,9 @@ package server
 import (
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/eternalApril/moonlight/internal/config"
 	"github.com/eternalApril/moonlight/internal/resp"
 	"github.com/eternalApril/moonlight/internal/store"
 )
@@ -11,16 +13,48 @@ import (
 type Engine struct {
 	commands map[string]Command
 	storage  *store.Storage
+	gcConf   config.GCConfig
+	stopGC   chan struct{}
 }
 
-func NewEngine(s store.Storage) *Engine {
+func NewEngine(s store.Storage, gcConf config.GCConfig) *Engine {
 	engine := Engine{
 		commands: make(map[string]Command),
 		storage:  &s,
+		gcConf:   gcConf,
+		stopGC:   make(chan struct{}),
 	}
 	engine.registerBasicCommand()
 
+	if gcConf.Enabled {
+		go engine.startGCLoop()
+	}
+
 	return &engine
+}
+
+// startGCLoop triggers the active expiration mechanism
+func (e *Engine) startGCLoop() {
+	ticker := time.NewTicker(e.gcConf.Interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			stats := (*e.storage).DeleteExpired(e.gcConf.SamplesPerCheck)
+			if stats < e.gcConf.MatchThreshold {
+				break
+			}
+		case <-e.stopGC:
+			return
+		}
+	}
+}
+
+func (e *Engine) Close() {
+	if e.gcConf.Enabled {
+		close(e.stopGC)
+	}
 }
 
 func (e *Engine) register(name string, cmd Command) {
