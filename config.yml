@@ -10,3 +10,7 @@ gc:
   interval: "100ms"
   sample_per_shard: 20
   expand_threshold: 0.25
+
+log:
+  level: "debug"
+  format: "console"
