@@ -8,6 +8,7 @@ import (
 	"github.com/eternalApril/moonlight/internal/config"
 	"github.com/eternalApril/moonlight/internal/resp"
 	"github.com/eternalApril/moonlight/internal/store"
+	"go.uber.org/zap"
 )
 
 type Engine struct {
@@ -15,14 +16,16 @@ type Engine struct {
 	storage  *store.Storage
 	gcConf   config.GCConfig
 	stopGC   chan struct{}
+	logger   *zap.Logger
 }
 
-func NewEngine(s store.Storage, gcConf config.GCConfig) *Engine {
+func NewEngine(s store.Storage, gcConf config.GCConfig, logger *zap.Logger) *Engine {
 	engine := Engine{
 		commands: make(map[string]Command),
 		storage:  &s,
 		gcConf:   gcConf,
 		stopGC:   make(chan struct{}),
+		logger:   logger,
 	}
 	engine.registerBasicCommand()
 
@@ -42,10 +45,16 @@ func (e *Engine) startGCLoop() {
 		select {
 		case <-ticker.C:
 			stats := (*e.storage).DeleteExpired(e.gcConf.SamplesPerCheck)
+
+			if stats > 0 {
+				e.logger.Debug("GC delete expired", zap.Float64("expired_ratio", stats))
+			}
+
 			if stats < e.gcConf.MatchThreshold {
 				break
 			}
 		case <-e.stopGC:
+			e.logger.Info("GC stopped")
 			return
 		}
 	}
@@ -73,6 +82,14 @@ func (e *Engine) registerBasicCommand() {
 }
 
 func (e *Engine) Execute(name string, args []resp.Value) resp.Value {
+	if e.logger.Core().Enabled(zap.DebugLevel) {
+		// Log the command name and number of args.
+		e.logger.Debug("executing command",
+			zap.String("cmd", name),
+			zap.Int("args_count", len(args)),
+		)
+	}
+
 	cmd, ok := e.commands[strings.ToUpper(name)]
 	if !ok {
 		return resp.MakeError(fmt.Sprintf("wrong command: %s", name))

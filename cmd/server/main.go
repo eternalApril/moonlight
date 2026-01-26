@@ -1,20 +1,30 @@
 package main
 
 import (
-	"fmt"
-	"log"
 	"net"
 	"strings"
 
 	"github.com/eternalApril/moonlight/internal/config"
+	"github.com/eternalApril/moonlight/internal/logger"
 	"github.com/eternalApril/moonlight/internal/resp"
 	"github.com/eternalApril/moonlight/internal/server"
 	"github.com/eternalApril/moonlight/internal/store"
+	"go.uber.org/zap"
 )
 
-func handleConnection(conn net.Conn, engine *server.Engine) {
+func handleConnection(conn net.Conn, engine *server.Engine, log *zap.Logger) {
+	if log.Core().Enabled(zap.DebugLevel) {
+		log.Debug("client connected", zap.String("addr", conn.RemoteAddr().String()))
+	}
+
 	peer := server.NewPeer(conn)
-	defer peer.Close()
+	defer func() {
+		peer.Close()
+		// log connection close
+		if log.Core().Enabled(zap.DebugLevel) {
+			log.Debug("client disconnected", zap.String("addr", conn.RemoteAddr().String()))
+		}
+	}()
 
 	for {
 		cmdValue, err := peer.ReadCommand()
@@ -23,7 +33,7 @@ func handleConnection(conn net.Conn, engine *server.Engine) {
 		}
 
 		if cmdValue.Type != resp.TypeArray {
-			fmt.Println("Invalid request type")
+			log.Error("invalid request type")
 			continue
 		}
 
@@ -37,8 +47,8 @@ func handleConnection(conn net.Conn, engine *server.Engine) {
 
 		result := engine.Execute(commandName, args)
 
-		if err := peer.Send(result); err != nil {
-			fmt.Println("Error writing response:", err)
+		if err = peer.Send(result); err != nil {
+			log.Error("error writing response:", zap.String("error", err.Error()))
 			return
 		}
 	}
@@ -47,18 +57,23 @@ func handleConnection(conn net.Conn, engine *server.Engine) {
 func main() {
 	cfg, err := config.Load(".")
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		panic(err)
 	}
 
-	fmt.Printf("Moonlight initializing... (Port: %s, Shards: %d, GC: %v)\n",
-		cfg.Server.Port, cfg.Storage.Shards, cfg.GC.Enabled)
+	log := logger.New(cfg.Log.Level, cfg.Log.Format)
+	defer log.Sync()
+
+	log.Info("Moonlight starting",
+		zap.String("port", cfg.Server.Port),
+		zap.Uint("shards", cfg.Storage.Shards),
+	)
 
 	db, err := store.NewShardedMapStore(cfg.Storage.Shards)
 	if err != nil {
 		panic(err)
 	}
 
-	engine := server.NewEngine(db, cfg.GC)
+	engine := server.NewEngine(db, cfg.GC, log)
 	defer engine.Close()
 
 	address := net.JoinHostPort(cfg.Server.Host, cfg.Server.Port)
@@ -66,15 +81,15 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Listening on %s...\n", address)
+	log.Info("listening on", zap.String("address", address))
 
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			fmt.Println("Accept error:", err)
+			log.Error("listener accept error", zap.String("error", err.Error()))
 			continue
 		}
 
-		go handleConnection(conn, engine)
+		go handleConnection(conn, engine, log)
 	}
 }

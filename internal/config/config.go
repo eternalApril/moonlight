@@ -12,6 +12,7 @@ type Config struct {
 	Server  ServerConfig  `mapstructure:"server"`
 	Storage StorageConfig `mapstructure:"storage"`
 	GC      GCConfig      `mapstructure:"gc"`
+	Log     LogConfig     `mapstructure:"log"`
 }
 
 type GCConfig struct {
@@ -28,6 +29,11 @@ type ServerConfig struct {
 
 type StorageConfig struct {
 	Shards uint `mapstructure:"shards"`
+}
+
+type LogConfig struct {
+	Level  string `mapstructure:"level"`  // debug, info, warn, error
+	Format string `mapstructure:"format"` // json, console
 }
 
 func Load(path string) (*Config, error) {
@@ -70,4 +76,8 @@ func setDefaults() {
 	viper.SetDefault("gc.interval", "100ms")
 	viper.SetDefault("gc.sample_per_shard", 20)
 	viper.SetDefault("gc.expand_threshold", 0.25)
+
+	// Logger
+	viper.SetDefault("log.level", "debug")
+	viper.SetDefault("log.format", "json")
 }
