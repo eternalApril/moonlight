@@ -1,0 +1,12 @@
+server:
+  host: "0.0.0.0"
+  port: "6380"
+
+storage:
+  shards: 32
+
+gc:
+  enabled: true
+  interval: "100ms"
+  sample_per_shard: 20
+  expand_threshold: 0.25

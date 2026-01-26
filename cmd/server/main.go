@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"strings"
 
@@ -11,14 +12,9 @@ import (
 	"github.com/eternalApril/moonlight/internal/store"
 )
 
-func handleConnection(conn net.Conn, db store.Storage) {
+func handleConnection(conn net.Conn, engine *server.Engine) {
 	peer := server.NewPeer(conn)
 	defer peer.Close()
-
-	// TODO add config file
-	defaultCFG := config.DefaultGCConfig()
-
-	engine := server.NewEngine(db, defaultCFG)
 
 	for {
 		cmdValue, err := peer.ReadCommand()
@@ -49,16 +45,28 @@ func handleConnection(conn net.Conn, db store.Storage) {
 }
 
 func main() {
-	db, err := store.NewShardedMapStore(32)
+	cfg, err := config.Load(".")
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
+
+	fmt.Printf("Moonlight initializing... (Port: %s, Shards: %d, GC: %v)\n",
+		cfg.Server.Port, cfg.Storage.Shards, cfg.GC.Enabled)
+
+	db, err := store.NewShardedMapStore(cfg.Storage.Shards)
 	if err != nil {
 		panic(err)
 	}
 
-	listener, err := net.Listen("tcp", "0.0.0.0:6380")
+	engine := server.NewEngine(db, cfg.GC)
+	defer engine.Close()
+
+	address := net.JoinHostPort(cfg.Server.Host, cfg.Server.Port)
+	listener, err := net.Listen("tcp", address)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Listening on :6380...")
+	fmt.Printf("Listening on %s...\n", address)
 
 	for {
 		conn, err := listener.Accept()
@@ -67,8 +75,6 @@ func main() {
 			continue
 		}
 
-		fmt.Println("Accept connection")
-
-		go handleConnection(conn, db)
+		go handleConnection(conn, engine)
 	}
 }
