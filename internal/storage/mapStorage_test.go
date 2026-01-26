@@ -1,4 +1,4 @@
-package store
+package storage
 
 import (
 	"fmt"
@@ -8,8 +8,8 @@ import (
 	"time"
 )
 
-func TestMapStore_Concurrency(t *testing.T) {
-	s := NewMapStore()
+func TestMapStorage_Concurrency(t *testing.T) {
+	s := NewMapStorage()
 	const workers = 100
 	const opsPerWorker = 100000
 
@@ -46,8 +46,8 @@ func TestMapStore_Concurrency(t *testing.T) {
 	wg.Wait()
 }
 
-func FuzzMapStore(f *testing.F) {
-	s := NewMapStore()
+func FuzzMapStorage(f *testing.F) {
+	s := NewMapStorage()
 
 	f.Add("key1", "val1")
 	f.Add("special", "!@#$%^&*()")

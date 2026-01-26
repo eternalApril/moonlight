@@ -1,4 +1,4 @@
-package store
+package storage
 
 import (
 	"fmt"
@@ -6,15 +6,15 @@ import (
 )
 
 func getAllImplementations() map[string]Storage {
-	sharedMap16, _ := NewShardedMapStore(16) //nolint:errcheck
-	sharedMap32, _ := NewShardedMapStore(32) //nolint:errcheck
-	sharedMap64, _ := NewShardedMapStore(64) //nolint:errcheck
+	sharedMap16, _ := NewShardedMapStorage(16) //nolint:errcheck
+	sharedMap32, _ := NewShardedMapStorage(32) //nolint:errcheck
+	sharedMap64, _ := NewShardedMapStorage(64) //nolint:errcheck
 
 	return map[string]Storage{
-		"MapStore":          NewMapStore(),
-		"SharedMapStore_16": sharedMap16,
-		"SharedMapStore_32": sharedMap32,
-		"SharedMapStore_64": sharedMap64,
+		"MapStorage":          NewMapStorage(),
+		"SharedMapStorage_16": sharedMap16,
+		"SharedMapStorage_32": sharedMap32,
+		"SharedMapStorage_64": sharedMap64,
 	}
 }
 

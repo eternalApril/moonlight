@@ -6,14 +6,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eternalApril/moonlight/internal/config"
+	"github.com/eternalApril/moonlight/internal/logger"
 	"github.com/eternalApril/moonlight/internal/resp"
-	"github.com/eternalApril/moonlight/internal/store"
+	"github.com/eternalApril/moonlight/internal/storage"
 )
 
 // setupEngine creates a fresh engine with a clean store for each test
 func setupEngine() *Engine {
-	s, _ := store.NewShardedMapStore(1)
-	return NewEngine(s)
+	s, _ := storage.NewShardedMapStorage(1)
+	return NewEngine(s, config.GCConfig{
+		Enabled: false,
+	}, logger.New("debug", "console"))
 }
 
 // helper to construct a RESP command request

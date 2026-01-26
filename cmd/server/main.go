@@ -8,10 +8,11 @@ import (
 	"github.com/eternalApril/moonlight/internal/logger"
 	"github.com/eternalApril/moonlight/internal/resp"
 	"github.com/eternalApril/moonlight/internal/server"
-	"github.com/eternalApril/moonlight/internal/store"
+	"github.com/eternalApril/moonlight/internal/storage"
 	"go.uber.org/zap"
 )
 
+// handleConnection handles a connection for a single user
 func handleConnection(conn net.Conn, engine *server.Engine, log *zap.Logger) {
 	if log.Core().Enabled(zap.DebugLevel) {
 		log.Debug("client connected", zap.String("addr", conn.RemoteAddr().String()))
@@ -61,16 +62,16 @@ func main() {
 	}
 
 	log := logger.New(cfg.Log.Level, cfg.Log.Format)
-	defer log.Sync()
+	defer log.Sync() //nolint:errcheck
 
 	log.Info("Moonlight starting",
 		zap.String("port", cfg.Server.Port),
 		zap.Uint("shards", cfg.Storage.Shards),
 	)
 
-	db, err := store.NewShardedMapStore(cfg.Storage.Shards)
+	db, err := storage.NewShardedMapStorage(cfg.Storage.Shards)
 	if err != nil {
-		panic(err)
+		log.Fatal("cant initialize storage", zap.String("error", err.Error()))
 	}
 
 	engine := server.NewEngine(db, cfg.GC, log)

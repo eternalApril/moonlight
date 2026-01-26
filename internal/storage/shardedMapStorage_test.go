@@ -1,4 +1,4 @@
-package store
+package storage
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func TestNewShardedMapStore(t *testing.T) {
+func TestNewShardedMapStorage(t *testing.T) {
 	tests := []struct {
 		name        string
 		shards      uint
@@ -25,7 +25,7 @@ func TestNewShardedMapStore(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s, err := NewShardedMapStore(tt.shards)
+			s, err := NewShardedMapStorage(tt.shards)
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("expected error for %d shards, got nil", tt.shards)
@@ -48,9 +48,9 @@ func TestNewShardedMapStore(t *testing.T) {
 	}
 }
 
-func TestShardedMapStore_Distribution(t *testing.T) {
+func TestShardedMapStorage_Distribution(t *testing.T) {
 	shardsCount := uint(16)
-	store, _ := NewShardedMapStore(shardsCount) //nolint:errcheck
+	store, _ := NewShardedMapStorage(shardsCount) //nolint:errcheck
 
 	keysPopulated := make(map[int]int)
 
@@ -76,8 +76,8 @@ func TestShardedMapStore_Distribution(t *testing.T) {
 	}
 }
 
-func TestShardedMapStore_Concurrent(t *testing.T) {
-	store, _ := NewShardedMapStore(16) //nolint:errcheck
+func TestShardedMapStorage_Concurrent(t *testing.T) {
+	store, _ := NewShardedMapStorage(16) //nolint:errcheck
 	var wg sync.WaitGroup
 
 	workers := 100
@@ -113,11 +113,11 @@ func TestShardedMapStore_Concurrent(t *testing.T) {
 	wg.Wait()
 }
 
-func FuzzSharedMapStore(f *testing.F) {
+func FuzzSharedMapStorage(f *testing.F) {
 	f.Add("key1", "val1")
 	f.Add("special", "!@#$%^&*()")
 
-	s, _ := NewShardedMapStore(8) //nolint:errcheck
+	s, _ := NewShardedMapStorage(8) //nolint:errcheck
 
 	f.Fuzz(func(t *testing.T, key string, val string) {
 		s.Set(key, val, SetOptions{

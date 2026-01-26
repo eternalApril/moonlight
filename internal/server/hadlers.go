@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/eternalApril/moonlight/internal/resp"
-	"github.com/eternalApril/moonlight/internal/store"
+	"github.com/eternalApril/moonlight/internal/storage"
 )
 
 func command(ctx *Context) resp.Value {
@@ -49,7 +49,7 @@ func set(ctx *Context) resp.Value {
 	key := string(ctx.args[0].String)
 	value := string(ctx.args[1].String)
 
-	options := store.SetOptions{}
+	options := storage.SetOptions{}
 
 	// flag tracking to prevent syntax errors
 	var hasTTL bool

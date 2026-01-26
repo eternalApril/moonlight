@@ -2,12 +2,12 @@ package server
 
 import (
 	"github.com/eternalApril/moonlight/internal/resp"
-	"github.com/eternalApril/moonlight/internal/store"
+	"github.com/eternalApril/moonlight/internal/storage"
 )
 
 type Context struct {
 	args    []resp.Value
-	storage *store.Storage
+	storage *storage.Storage
 }
 
 type Command interface {

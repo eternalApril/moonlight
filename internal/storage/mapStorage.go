@@ -1,25 +1,25 @@
-package store
+package storage
 
 import (
 	"sync"
 	"time"
 )
 
-type MapStore struct {
+type MapStorage struct {
 	data    map[string]string // key - value
 	expires map[string]int64  // key - expires time nanoseconds
 	mu      sync.RWMutex
 }
 
-func NewMapStore() *MapStore {
-	return &MapStore{
+func NewMapStorage() *MapStorage {
+	return &MapStorage{
 		data:    make(map[string]string),
 		expires: make(map[string]int64),
 		mu:      sync.RWMutex{},
 	}
 }
 
-func (m *MapStore) Get(key string) (string, bool) {
+func (m *MapStorage) Get(key string) (string, bool) {
 	m.mu.RLock()
 	exp, hasExp := m.expires[key]
 	val, ok := m.data[key]
@@ -50,7 +50,7 @@ func (m *MapStore) Get(key string) (string, bool) {
 	return val, true
 }
 
-func (m *MapStore) Set(key, value string, options SetOptions) bool {
+func (m *MapStorage) Set(key, value string, options SetOptions) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -93,7 +93,7 @@ func (m *MapStore) Set(key, value string, options SetOptions) bool {
 	return true
 }
 
-func (m *MapStore) Delete(key string) bool {
+func (m *MapStorage) Delete(key string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if _, ok := m.data[key]; ok {
@@ -109,7 +109,7 @@ func (m *MapStore) Delete(key string) bool {
 // The key does not exist (or expired)(-2).
 // The key exists but has no expiration(-1).
 // The key exists and has an expiration date (ttl is returned in time.Duration)(1)
-func (m *MapStore) Expiry(key string) (time.Duration, int) {
+func (m *MapStorage) Expiry(key string) (time.Duration, int) {
 	m.mu.RLock()
 
 	_, ok := m.data[key]
@@ -157,7 +157,7 @@ func (m *MapStore) Expiry(key string) (time.Duration, int) {
 	return time.Duration(exp - now), 1
 }
 
-func (m *MapStore) Persist(key string) int64 {
+func (m *MapStorage) Persist(key string) int64 {
 	m.mu.RLock()
 
 	_, ok := m.data[key]
@@ -185,7 +185,7 @@ func (m *MapStore) Persist(key string) int64 {
 	return 1
 }
 
-func (m *MapStore) DeleteExpired(limit int) float64 {
+func (m *MapStorage) DeleteExpired(limit int) float64 {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

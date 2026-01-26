@@ -7,19 +7,19 @@ import (
 
 	"github.com/eternalApril/moonlight/internal/config"
 	"github.com/eternalApril/moonlight/internal/resp"
-	"github.com/eternalApril/moonlight/internal/store"
+	"github.com/eternalApril/moonlight/internal/storage"
 	"go.uber.org/zap"
 )
 
 type Engine struct {
 	commands map[string]Command
-	storage  *store.Storage
+	storage  *storage.Storage
 	gcConf   config.GCConfig
 	stopGC   chan struct{}
 	logger   *zap.Logger
 }
 
-func NewEngine(s store.Storage, gcConf config.GCConfig, logger *zap.Logger) *Engine {
+func NewEngine(s storage.Storage, gcConf config.GCConfig, logger *zap.Logger) *Engine {
 	engine := Engine{
 		commands: make(map[string]Command),
 		storage:  &s,
