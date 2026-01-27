@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/eternalApril/moonlight/internal/config"
@@ -15,8 +16,9 @@ type Engine struct {
 	commands map[string]Command
 	storage  *storage.Storage
 	gcConf   config.GCConfig
-	stopGC   chan struct{}
 	logger   *zap.Logger
+	stopGC   chan struct{}
+	stopOnce sync.Once
 }
 
 func NewEngine(s storage.Storage, gcConf config.GCConfig, logger *zap.Logger) *Engine {
@@ -101,4 +103,11 @@ func (e *Engine) Execute(name string, args []resp.Value) resp.Value {
 	}
 
 	return cmd.Execute(ctx)
+}
+
+func (e *Engine) Shutdown() {
+	e.stopOnce.Do(func() {
+		e.Close()
+		e.logger.Info("GC background process stopped")
+	})
 }

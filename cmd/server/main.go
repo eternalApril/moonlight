@@ -1,8 +1,14 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"net"
+	"os/signal"
 	"strings"
+	"sync"
+	"syscall"
+	"time"
 
 	"github.com/eternalApril/moonlight/internal/config"
 	"github.com/eternalApril/moonlight/internal/logger"
@@ -49,7 +55,7 @@ func handleConnection(conn net.Conn, engine *server.Engine, log *zap.Logger) {
 		result := engine.Execute(commandName, args)
 
 		if err = peer.Send(result); err != nil {
-			log.Error("error writing response:", zap.String("error", err.Error()))
+			log.Error("error writing response:", zap.Error(err))
 			return
 		}
 	}
@@ -71,26 +77,66 @@ func main() {
 
 	db, err := storage.NewShardedMapStorage(cfg.Storage.Shards)
 	if err != nil {
-		log.Fatal("cant initialize storage", zap.String("error", err.Error()))
+		log.Error("cant initialize storage", zap.Error(err))
+		return
 	}
 
 	engine := server.NewEngine(db, cfg.GC, log)
-	defer engine.Close()
 
 	address := net.JoinHostPort(cfg.Server.Host, cfg.Server.Port)
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
-		panic(err)
+		log.Error("listener error", zap.Error(err))
+		return
 	}
 	log.Info("listening on", zap.String("address", address))
 
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			log.Error("listener accept error", zap.String("error", err.Error()))
-			continue
-		}
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
-		go handleConnection(conn, engine, log)
+	var wg sync.WaitGroup
+
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				if errors.Is(err, net.ErrClosed) {
+					return
+				}
+				log.Error("Accept error", zap.Error(err))
+				continue
+			}
+
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				handleConnection(conn, engine, log)
+			}()
+		}
+	}()
+
+	<-ctx.Done()
+
+	log.Info("Shutting down...")
+
+	listener.Close()
+	engine.Shutdown() //nolint:errcheck
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		log.Info("All connections closed gracefully")
+	case <-shutdownCtx.Done():
+		log.Warn("Shutdown timed out, forcing exit", zap.Duration("timeout", 5*time.Second))
 	}
+
+	log.Info("Moonlight stopped")
 }

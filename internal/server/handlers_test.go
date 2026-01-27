@@ -14,14 +14,14 @@ import (
 
 // setupEngine creates a fresh engine with a clean store for each test
 func setupEngine() *Engine {
-	s, _ := storage.NewShardedMapStorage(1)
+	s, _ := storage.NewShardedMapStorage(1) //nolint:errcheck
 	return NewEngine(s, config.GCConfig{
 		Enabled: false,
 	}, logger.New("debug", "console"))
 }
 
 // helper to construct a RESP command request
-func makeCommand(cmd string, args ...string) []resp.Value {
+func makeCommand(_ string, args ...string) []resp.Value {
 	vals := make([]resp.Value, len(args))
 	for i, arg := range args {
 		vals[i] = resp.MakeBulkString(arg)
@@ -68,7 +68,7 @@ func TestBasicSetGetDel(t *testing.T) {
 		t.Errorf("expected null for missing key, got %v", res.Type)
 	}
 
-	//SET key
+	// SET key
 	res = e.Execute("SET", makeCommand("SET", "mykey", "myvalue"))
 	if string(res.String) != "OK" {
 		t.Errorf("expected OK, got %v", res.String)

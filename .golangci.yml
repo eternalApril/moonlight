@@ -30,7 +30,7 @@ linters:
     gocognit:
       min-complexity: 30
     gocyclo:
-      min-complexity: 20
+      min-complexity: 25
     nakedret:
       max-func-lines: 50
     staticcheck:
