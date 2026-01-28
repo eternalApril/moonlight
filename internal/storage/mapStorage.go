@@ -5,12 +5,14 @@ import (
 	"time"
 )
 
+// MapStorage is a thread-safe key-value storage.
 type MapStorage struct {
 	data    map[string]string // key - value
 	expires map[string]int64  // key - expires time nanoseconds
 	mu      sync.RWMutex
 }
 
+// NewMapStorage creates a new instance oа MapStorage.
 func NewMapStorage() *MapStorage {
 	return &MapStorage{
 		data:    make(map[string]string),
@@ -19,6 +21,7 @@ func NewMapStorage() *MapStorage {
 	}
 }
 
+// Get returns the value and true if the key is found. Otherwise, "", false
 func (m *MapStorage) Get(key string) (string, bool) {
 	m.mu.RLock()
 	exp, hasExp := m.expires[key]
@@ -50,6 +53,7 @@ func (m *MapStorage) Get(key string) (string, bool) {
 	return val, true
 }
 
+// Set writes the value based on the options. Returns true if recording has been performed
 func (m *MapStorage) Set(key, value string, options SetOptions) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -57,8 +61,9 @@ func (m *MapStorage) Set(key, value string, options SetOptions) bool {
 	_, exists := m.data[key]
 	if exists {
 		exp, hasExp := m.expires[key]
+
+		// key exists but is expired, clean it up now so logic below treats it as new
 		if hasExp && time.Now().UnixNano() > exp {
-			// key exists but is expired, clean it up now so logic below treats it as new
 			delete(m.data, key)
 			delete(m.expires, key)
 			exists = false
@@ -93,6 +98,7 @@ func (m *MapStorage) Set(key, value string, options SetOptions) bool {
 	return true
 }
 
+// Delete deletes the key. Returns true if the key existed and was deleted
 func (m *MapStorage) Delete(key string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -104,12 +110,8 @@ func (m *MapStorage) Delete(key string) bool {
 	return false
 }
 
-// Expiry returns the remaining lifetime and status code in the second return value.
-//
-// The key does not exist (or expired)(-2).
-// The key exists but has no expiration(-1).
-// The key exists and has an expiration date (ttl is returned in time.Duration)(1)
-func (m *MapStorage) Expiry(key string) (time.Duration, int) {
+// Expiry returns the remaining lifetime and status as ExpiryStatus
+func (m *MapStorage) Expiry(key string) (time.Duration, ExpiryStatus) {
 	m.mu.RLock()
 
 	_, ok := m.data[key]
@@ -119,12 +121,12 @@ func (m *MapStorage) Expiry(key string) (time.Duration, int) {
 
 	// key does not exist
 	if !ok {
-		return 0, -2
+		return 0, ExpNotFound
 	}
 
 	// key without TTL
 	if !hasExp {
-		return 0, -1
+		return 0, ExpNoTimeout
 	}
 
 	now := time.Now().UnixNano()
@@ -134,12 +136,12 @@ func (m *MapStorage) Expiry(key string) (time.Duration, int) {
 		defer m.mu.Unlock()
 
 		if _, ok = m.data[key]; !ok {
-			return 0, -2
+			return 0, ExpNotFound
 		}
 
 		exp, hasExp = m.expires[key]
 		if !hasExp {
-			return 0, -1
+			return 0, ExpNoTimeout
 		}
 
 		now = time.Now().UnixNano()
@@ -148,15 +150,17 @@ func (m *MapStorage) Expiry(key string) (time.Duration, int) {
 		if now > exp {
 			delete(m.data, key)
 			delete(m.expires, key)
-			return 0, -2
+			return 0, ExpNotFound
 		}
 
-		return time.Duration(exp - now), 1
+		return time.Duration(exp - now), ExpActive
 	}
 
-	return time.Duration(exp - now), 1
+	return time.Duration(exp - now), ExpActive
 }
 
+// Persist removes the expiration date of the key, making it eternal.
+// Returns 1 if successful, 0 if the key was not found or had no TTL
 func (m *MapStorage) Persist(key string) int64 {
 	m.mu.RLock()
 
@@ -185,6 +189,7 @@ func (m *MapStorage) Persist(key string) int64 {
 	return 1
 }
 
+// DeleteExpired randomly selects a limit of keys from each shard and delete if his TTL has expired
 func (m *MapStorage) DeleteExpired(limit int) float64 {
 	m.mu.Lock()
 	defer m.mu.Unlock()

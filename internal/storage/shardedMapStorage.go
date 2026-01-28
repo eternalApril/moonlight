@@ -8,11 +8,16 @@ import (
 	"time"
 )
 
+// ShardedMapStorage is a thread-safe key-value storage,
+// divided into segments (shards) to reduce contention for locking
 type ShardedMapStorage struct {
 	shards    []*MapStorage
 	shardMask uint32
 }
 
+// NewShardedMapStorage creates a new instance of ShardedMapStorage.
+// The requestedShards parameter must be a power of two for efficient allocation.
+// The maximum allowed number of shards is 64.
 func NewShardedMapStorage(requestedShards uint) (*ShardedMapStorage, error) {
 	if bits.OnesCount(requestedShards) != 1 {
 		return nil, errors.New("requested shards must be a power of 2")
@@ -35,6 +40,7 @@ func NewShardedMapStorage(requestedShards uint) (*ShardedMapStorage, error) {
 	return s, nil
 }
 
+// getShardIndex returns index of shard by key
 func (s *ShardedMapStorage) getShardIndex(key string) uint32 {
 	hash := fnv.New32a()
 	hash.Write([]byte(key)) //nolint:errcheck
@@ -42,26 +48,33 @@ func (s *ShardedMapStorage) getShardIndex(key string) uint32 {
 	return hash.Sum32() & s.shardMask
 }
 
+// Get returns the value and true if the key is found. Otherwise, "", false.
 func (s *ShardedMapStorage) Get(key string) (string, bool) {
 	return s.shards[s.getShardIndex(key)].Get(key)
 }
 
+// Set writes the value based on the options. Returns true if recording has been performed.
 func (s *ShardedMapStorage) Set(key, value string, options SetOptions) bool {
 	return s.shards[s.getShardIndex(key)].Set(key, value, options)
 }
 
+// Delete deletes the key. Returns true if the key existed and was deleted.
 func (s *ShardedMapStorage) Delete(key string) bool {
 	return s.shards[s.getShardIndex(key)].Delete(key)
 }
 
-func (s *ShardedMapStorage) Expiry(key string) (time.Duration, int) {
+// Expiry returns the remaining lifetime and status as ExpiryStatus
+func (s *ShardedMapStorage) Expiry(key string) (time.Duration, ExpiryStatus) {
 	return s.shards[s.getShardIndex(key)].Expiry(key)
 }
 
+// Persist removes the expiration date of the key, making it eternal.
+// Returns 1 if successful, 0 if the key was not found or had no TTL
 func (s *ShardedMapStorage) Persist(key string) int64 {
 	return s.shards[s.getShardIndex(key)].Persist(key)
 }
 
+// DeleteExpired randomly selects a limit of keys from each shard and delete if his TTL has expired
 func (s *ShardedMapStorage) DeleteExpired(limit int) float64 {
 	var wg sync.WaitGroup
 	var totalRatio float64
