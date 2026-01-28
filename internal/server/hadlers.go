@@ -10,12 +10,13 @@ import (
 	"github.com/eternalApril/moonlight/internal/storage"
 )
 
-func command(ctx *Context) resp.Value {
+func cmd(_ *context) resp.Value {
 	// must return docs in the future
 	return resp.MakeSimpleString("OK")
 }
 
-func ping(ctx *Context) resp.Value {
+// ping returns PONG if no arguments are provided, or a copy of the argument if one is given
+func ping(ctx *context) resp.Value {
 	// command takes zero or one arguments
 	if len(ctx.args) > 1 {
 		return resp.MakeErrorWrongNumberOfArguments("PING")
@@ -28,7 +29,8 @@ func ping(ctx *Context) resp.Value {
 	return resp.MakeSimpleString("PONG")
 }
 
-func get(ctx *Context) resp.Value {
+// get retrieves the value of a key. Returns a Nil Bulk String if the key does not exist
+func get(ctx *context) resp.Value {
 	if len(ctx.args) != 1 {
 		return resp.MakeErrorWrongNumberOfArguments("GET")
 	}
@@ -41,7 +43,8 @@ func get(ctx *Context) resp.Value {
 	return resp.MakeBulkString(value)
 }
 
-func set(ctx *Context) resp.Value {
+// set assigns a value to a key with optional parameters
+func set(ctx *context) resp.Value {
 	if len(ctx.args) < 2 {
 		return resp.MakeErrorWrongNumberOfArguments("SET")
 	}
@@ -130,7 +133,8 @@ func set(ctx *Context) resp.Value {
 	return resp.MakeSimpleString("OK")
 }
 
-func del(ctx *Context) resp.Value {
+// del removes the specified keys. Returns the number of keys that were removed
+func del(ctx *context) resp.Value {
 	if len(ctx.args) < 1 {
 		return resp.MakeErrorWrongNumberOfArguments("DEL")
 	}
@@ -145,7 +149,8 @@ func del(ctx *Context) resp.Value {
 	return resp.MakeInteger(wasDeleted)
 }
 
-func ttl(ctx *Context) resp.Value {
+// ttl returns the remaining time to live of a key in seconds
+func ttl(ctx *context) resp.Value {
 	if len(ctx.args) != 1 {
 		return resp.MakeErrorWrongNumberOfArguments("TTL")
 	}
@@ -160,7 +165,8 @@ func ttl(ctx *Context) resp.Value {
 	return resp.MakeInteger(int64(duration.Seconds()))
 }
 
-func pttl(ctx *Context) resp.Value {
+// pttl returns the remaining time to live of a key in milliseconds
+func pttl(ctx *context) resp.Value {
 	if len(ctx.args) != 1 {
 		return resp.MakeErrorWrongNumberOfArguments("PTTL")
 	}
@@ -175,7 +181,8 @@ func pttl(ctx *Context) resp.Value {
 	return resp.MakeInteger(duration.Milliseconds())
 }
 
-func persist(ctx *Context) resp.Value {
+// persist removes the expiration from a key, making it persistent
+func persist(ctx *context) resp.Value {
 	if len(ctx.args) != 1 {
 		return resp.MakeErrorWrongNumberOfArguments("PERSIST")
 	}

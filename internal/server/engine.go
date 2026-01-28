@@ -12,18 +12,21 @@ import (
 	"go.uber.org/zap"
 )
 
+// Engine coordinates the execution of commands and manages the background tasks of the repository
 type Engine struct {
-	commands map[string]Command
-	storage  *storage.Storage
-	gcConf   config.GCConfig
+	commands map[string]command // Registry of available commands (the key is the command name in uppercase)
+	storage  *storage.Storage   // Interface to the underlying KV storage
+	gcConf   config.GCConfig    // Configuration of the garbage collector
 	logger   *zap.Logger
-	stopGC   chan struct{}
-	stopOnce sync.Once
+	stopGC   chan struct{} // Channel for the background GC stop signal
+	stopOnce sync.Once     // Ensures that the stop happens only once
 }
 
+// NewEngine initializes the engine, registers the basic commands, and
+// if enabled in the config, starts background cleanup of outdated keys
 func NewEngine(s storage.Storage, gcConf config.GCConfig, logger *zap.Logger) *Engine {
 	engine := Engine{
-		commands: make(map[string]Command),
+		commands: make(map[string]command),
 		storage:  &s,
 		gcConf:   gcConf,
 		stopGC:   make(chan struct{}),
@@ -62,52 +65,58 @@ func (e *Engine) startGCLoop() {
 	}
 }
 
-func (e *Engine) Close() {
+// close signals background processes to shut down
+func (e *Engine) close() {
 	if e.gcConf.Enabled {
 		close(e.stopGC)
 	}
 }
 
-func (e *Engine) register(name string, cmd Command) {
+// register adds a new command to the engine. The command name is uppercase
+func (e *Engine) register(name string, cmd command) {
 	e.commands[strings.ToUpper(name)] = cmd
 }
 
+// registerBasicCommand fills the registry with standard commands
 func (e *Engine) registerBasicCommand() {
-	e.register("GET", CommandFunc(get))
-	e.register("SET", CommandFunc(set))
-	e.register("DEL", CommandFunc(del))
-	e.register("PING", CommandFunc(ping))
-	e.register("COMMAND", CommandFunc(command))
-	e.register("TTL", CommandFunc(ttl))
-	e.register("PTTL", CommandFunc(pttl))
-	e.register("PERSIST", CommandFunc(persist))
+	e.register("GET", commandFunc(get))
+	e.register("SET", commandFunc(set))
+	e.register("DEL", commandFunc(del))
+	e.register("PING", commandFunc(ping))
+	e.register("COMMAND", commandFunc(cmd))
+	e.register("TTL", commandFunc(ttl))
+	e.register("PTTL", commandFunc(pttl))
+	e.register("PERSIST", commandFunc(persist))
 }
 
+// Execute finds the command by name and executes it with the passed arguments.
+// If the command is not found, returns an error in the RESP format
 func (e *Engine) Execute(name string, args []resp.Value) resp.Value {
 	if e.logger.Core().Enabled(zap.DebugLevel) {
-		// Log the command name and number of args.
+		// Log the command name and number of args
 		e.logger.Debug("executing command",
 			zap.String("cmd", name),
 			zap.Int("args_count", len(args)),
 		)
 	}
 
-	cmd, ok := e.commands[strings.ToUpper(name)]
+	cmd, ok := e.commands[name]
 	if !ok {
 		return resp.MakeError(fmt.Sprintf("wrong command: %s", name))
 	}
 
-	ctx := &Context{
+	ctx := &context{
 		args:    args,
 		storage: e.storage,
 	}
 
-	return cmd.Execute(ctx)
+	return cmd.execute(ctx)
 }
 
+// Shutdown shuts down the engine and its background services correctly
 func (e *Engine) Shutdown() {
 	e.stopOnce.Do(func() {
-		e.Close()
+		e.close()
 		e.logger.Info("GC background process stopped")
 	})
 }
