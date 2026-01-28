@@ -13,4 +13,4 @@ gc:
 
 log:
   level: "debug"
-  format: "console"
+  format: "json"
