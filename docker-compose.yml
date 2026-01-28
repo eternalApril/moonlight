@@ -1,0 +1,11 @@
+services:
+  moonlight:
+    build: .
+    ports:
+      - "6381:6381"
+    environment:
+      - MOONLIGHT_STORAGE_SHARDS=64
+      - MOONLIGHT_GC_ENABLED=true
+      - MOONLIGHT_GC_INTERVAL=50ms
+      - MOONLIGHT_SERVER_PORT=6381
+      - MOONLIGHT_LOG_FORMAT=json
