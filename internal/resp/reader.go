@@ -9,17 +9,21 @@ import (
 )
 
 var (
+	// ErrInvalidEnding is returned when a RESP element does not end with "\r\n"
 	ErrInvalidEnding = errors.New("invalid line ending")
 )
 
+// Decoder provides a high-level API for reading RESP values from an input stream
 type Decoder struct {
 	rd *bufio.Reader
 }
 
+// NewDecoder creates a new Decoder with an internal buffer for efficient reading
 func NewDecoder(rd io.Reader) *Decoder {
 	return &Decoder{rd: bufio.NewReader(rd)}
 }
 
+// Read parses the next complete RESP Value from the stream
 func (d *Decoder) Read() (Value, error) {
 	_type, err := d.rd.ReadByte()
 	if err != nil {
@@ -79,6 +83,7 @@ func (d *Decoder) Read() (Value, error) {
 	return Value{}, errors.New("unexpected type")
 }
 
+// readLine reads bytes until \n and validates the \r\n sequence
 func (d *Decoder) readLine() ([]byte, error) {
 	line, err := d.rd.ReadSlice('\n')
 	if err != nil {
@@ -95,6 +100,7 @@ func (d *Decoder) readLine() ([]byte, error) {
 	return line[:len(line)-2], nil
 }
 
+// readInteger parses a RESP integer
 func (d *Decoder) readInteger() (int64, error) {
 	line, err := d.readLine()
 	if err != nil {
@@ -109,6 +115,7 @@ func (d *Decoder) readInteger() (int64, error) {
 	return i, nil
 }
 
+// readBulkString parses a bulk string
 func (d *Decoder) readBulkString() ([]byte, error) {
 	size, err := d.readInteger()
 	if err != nil {
@@ -137,6 +144,7 @@ func (d *Decoder) readBulkString() ([]byte, error) {
 	return buf, nil
 }
 
+// readArray parses a RESP array recursively
 func (d *Decoder) readArray() ([]Value, error) {
 	size, err := d.readInteger()
 	if err != nil {
@@ -171,6 +179,7 @@ func (d *Decoder) readArray() ([]Value, error) {
 	return buf, nil
 }
 
+// MakeSimpleString construct SimpleString Value from string
 func MakeSimpleString(s string) Value {
 	return Value{
 		Type:   TypeSimpleString,
@@ -178,6 +187,7 @@ func MakeSimpleString(s string) Value {
 	}
 }
 
+// MakeError construct Error Value from string
 func MakeError(s string) Value {
 	return Value{
 		Type:   TypeError,
@@ -185,10 +195,12 @@ func MakeError(s string) Value {
 	}
 }
 
+// MakeErrorWrongNumberOfArguments construct Error Value that command had wrong number of arguments for command
 func MakeErrorWrongNumberOfArguments(cmd string) Value {
 	return MakeError(fmt.Sprintf("wrong number of arguments for %s command", cmd))
 }
 
+// MakeBulkString construct BulkString Value from string
 func MakeBulkString(s string) Value {
 	return Value{
 		Type:   TypeBulkString,
@@ -196,6 +208,7 @@ func MakeBulkString(s string) Value {
 	}
 }
 
+// MakeNilBulkString construct nil BulkSting Value
 func MakeNilBulkString() Value {
 	return Value{
 		Type:   TypeBulkString,
@@ -203,6 +216,7 @@ func MakeNilBulkString() Value {
 	}
 }
 
+// MakeInteger construct Integer Value from int64
 func MakeInteger(n int64) Value {
 	return Value{
 		Type:    TypeInteger,

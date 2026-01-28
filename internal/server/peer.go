@@ -11,8 +11,8 @@ import (
 // It wraps a network connection and provides synchronized methods for reading and writing RESP-encoded data
 type Peer struct {
 	conn   net.Conn
-	reader *resp.Decoder
-	writer *resp.Encoder
+	reader resp.Reader
+	writer resp.Writer
 	mu     sync.Mutex
 }
 
