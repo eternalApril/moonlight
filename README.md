@@ -11,16 +11,16 @@ redis-cli).
 ## ️ Supported Commands
 Moonlight currently supports commands:
 
-| Command   | Description                                      | Supported Flags                                   |
-|:----------|:-------------------------------------------------|:--------------------------------------------------|
-| `COMMAND` | Return an array with details about every command | -                                                 |
-| `PING`    | Check server health                              | -                                                 |
-| `GET`     | Get value by key                                 | -                                                 |
-| `SET`     | Set key to value                                 | `NX`, `XX`, `EX`, `PX`, `EXAT`, `PXAT`, `KEEPTTL` |
-| `DEL`     | Delete one or more keys                          | -                                                 |
-| `TTL`     | Get remaining time (sec)                         | -                                                 |
-| `PTTL`    | Get remaining time (ms)                          | -                                                 |
-| `PERSIST` | Remove the existing timeout on key               | -                                                 |
+| Command   | Description                                      | Supported Flags                                    |
+|:----------|:-------------------------------------------------|:---------------------------------------------------|
+| `COMMAND` | Return an array with details about every command | `COUNT`                                            |
+| `PING`    | Check server health                              | -                                                  |
+| `GET`     | Get value by key                                 | -                                                  |
+| `SET`     | Set key to value                                 | `NX`, `XX`, `EX`, `PX`, `EXAT`, `PXAT`, `KEEPTTL`  |
+| `DEL`     | Delete one or more keys                          | -                                                  |
+| `TTL`     | Get remaining time (sec)                         | -                                                  |
+| `PTTL`    | Get remaining time (ms)                          | -                                                  |
+| `PERSIST` | Remove the existing timeout on key               | -                                                  |
 
 ## Installation & Usage
 
