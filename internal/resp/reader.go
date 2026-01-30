@@ -223,3 +223,11 @@ func MakeInteger(n int64) Value {
 		Integer: n,
 	}
 }
+
+// MakeArray creates a standard RESP array containing the provided elements
+func MakeArray(values []Value) Value {
+	return Value{
+		Type:  TypeArray,
+		Array: values,
+	}
+}

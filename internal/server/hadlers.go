@@ -10,9 +10,68 @@ import (
 	"github.com/eternalApril/moonlight/internal/storage"
 )
 
-func cmd(_ *context) resp.Value {
-	// must return docs in the future
-	return resp.MakeSimpleString("OK")
+type commandMetadata struct {
+	name     string
+	arity    int      // Arity includes the command name itself
+	flags    []string // read, write, fast, denyoom, etc
+	firstKey int      // 1-based index of the first key
+	lastKey  int      // 1-based index of the last key
+	step     int      // Step count for finding keys
+}
+
+func makeFlagsArray(flags []string) resp.Value {
+	vals := make([]resp.Value, len(flags))
+	for i, f := range flags {
+		vals[i] = resp.MakeSimpleString(f)
+	}
+	return resp.MakeArray(vals)
+}
+
+// getCommandRegistry returns the metadata for all supported commands
+func getCommandRegistry() []commandMetadata {
+	return []commandMetadata{
+		{"ping", -1, []string{"fast", "stale"}, 0, 0, 0},
+		{"get", 2, []string{"readonly", "fast"}, 1, 1, 1},
+		{"set", -3, []string{"write", "denyoom"}, 1, 1, 1},
+		{"del", -2, []string{"write"}, 1, -1, 1},
+		{"ttl", 2, []string{"readonly", "fast"}, 1, 1, 1},
+		{"pttl", 2, []string{"readonly", "fast"}, 1, 1, 1},
+		{"persist", 2, []string{"write", "fast"}, 1, 1, 1},
+		{"command", -1, []string{"random", "loading", "stale"}, 0, 0, 0},
+	}
+}
+
+// cmd handles the COMMAND introspection command
+func cmd(ctx *context) resp.Value {
+	if len(ctx.args) > 0 {
+		subCmd := strings.ToUpper(string(ctx.args[0].String))
+		if subCmd == "COUNT" {
+			return resp.MakeInteger(int64(len(getCommandRegistry())))
+		}
+		if subCmd == "DOCS" {
+			// TODO docs
+			return resp.MakeSimpleString("OK")
+		}
+		return resp.MakeErrorWrongNumberOfArguments("COMMAND")
+	}
+
+	registry := getCommandRegistry()
+	cmdArray := make([]resp.Value, 0, len(registry))
+
+	for _, info := range registry {
+		details := []resp.Value{
+			resp.MakeBulkString(info.name),
+			resp.MakeInteger(int64(info.arity)),
+			makeFlagsArray(info.flags),
+			resp.MakeInteger(int64(info.firstKey)),
+			resp.MakeInteger(int64(info.lastKey)),
+			resp.MakeInteger(int64(info.step)),
+		}
+
+		cmdArray = append(cmdArray, resp.MakeArray(details))
+	}
+
+	return resp.MakeArray(cmdArray)
 }
 
 // ping returns PONG if no arguments are provided, or a copy of the argument if one is given
