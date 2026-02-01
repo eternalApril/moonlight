@@ -16,7 +16,7 @@ func (a *AOF) Load() ([]resp.Value, error) {
 		}
 		return nil, err
 	}
-	defer file.Close()
+	defer file.Close() //nolint:errcheck
 
 	reader := resp.NewDecoder(file)
 	var commands []resp.Value

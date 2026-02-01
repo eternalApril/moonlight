@@ -67,8 +67,7 @@ func (a *AOF) Write(payload []byte) {
 func (a *AOF) listen() {
 	defer a.wg.Done()
 
-	var ticker *time.Ticker
-	ticker = time.NewTicker(1 * time.Second)
+	var ticker = time.NewTicker(1 * time.Second)
 
 	switch a.strategy {
 	case fsyncAlways:
