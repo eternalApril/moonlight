@@ -26,7 +26,7 @@ func handleConnection(conn net.Conn, engine *server.Engine, log *zap.Logger) {
 
 	peer := server.NewPeer(conn)
 	defer func() {
-		peer.Close()
+		peer.Close() //nolint:errcheck
 		// log connection close
 		if log.Core().Enabled(zap.DebugLevel) {
 			log.Debug("client disconnected", zap.String("addr", conn.RemoteAddr().String()))
@@ -81,7 +81,11 @@ func main() {
 		return
 	}
 
-	engine := server.NewEngine(db, cfg.GC, log)
+	engine, err := server.NewEngine(db, cfg, log)
+	if err != nil {
+		log.Error("cant initialize storage", zap.Error(err))
+		return
+	}
 
 	address := net.JoinHostPort(cfg.Server.Host, cfg.Server.Port)
 	listener, err := net.Listen("tcp", address)
@@ -119,8 +123,8 @@ func main() {
 
 	log.Info("Shutting down...")
 
-	listener.Close()
-	engine.Shutdown() //nolint:errcheck
+	listener.Close() //nolint:errcheck
+	engine.Shutdown()
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

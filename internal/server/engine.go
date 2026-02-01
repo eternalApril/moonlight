@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/eternalApril/moonlight/internal/config"
+	"github.com/eternalApril/moonlight/internal/persistence"
 	"github.com/eternalApril/moonlight/internal/resp"
 	"github.com/eternalApril/moonlight/internal/storage"
 	"go.uber.org/zap"
@@ -16,46 +17,88 @@ import (
 type Engine struct {
 	commands map[string]command // Registry of available commands (the key is the command name in uppercase)
 	storage  *storage.Storage   // Interface to the underlying KV storage
-	gcConf   config.GCConfig    // Configuration of the garbage collector
+	cfg      *config.Config     // Configuration engine
+	stopGC   chan struct{}      // Channel for the background GC stop signal
+	stopOnce sync.Once          // Ensures that the stop happens only once
+	aof      *persistence.AOF   // AOF instance
 	logger   *zap.Logger
-	stopGC   chan struct{} // Channel for the background GC stop signal
-	stopOnce sync.Once     // Ensures that the stop happens only once
 }
 
 // NewEngine initializes the engine, registers the basic commands, and
 // if enabled in the config, starts background cleanup of outdated keys
-func NewEngine(s storage.Storage, gcConf config.GCConfig, logger *zap.Logger) *Engine {
+func NewEngine(s storage.Storage, cfg *config.Config, logger *zap.Logger) (*Engine, error) {
 	engine := Engine{
 		commands: make(map[string]command),
 		storage:  &s,
-		gcConf:   gcConf,
+		cfg:      cfg,
 		stopGC:   make(chan struct{}),
 		logger:   logger,
 	}
 	engine.registerBasicCommand()
 
-	if gcConf.Enabled {
+	if cfg.Persistence.AOF.Enabled {
+		aof, err := persistence.NewAOF(
+			cfg.Persistence.AOF.Filename,
+			cfg.Persistence.AOF.Fsync,
+			logger,
+		)
+		if err != nil {
+			return nil, err
+		}
+		engine.aof = aof
+
+		// Replay existing AOF
+		engine.replayAOF()
+	}
+
+	if cfg.GC.Enabled {
 		go engine.startGCLoop()
 	}
 
-	return &engine
+	return &engine, nil
+}
+
+func (e *Engine) replayAOF() {
+	cmds, err := e.aof.Load()
+	if err != nil {
+		e.logger.Error("Failed to load AOF", zap.Error(err))
+		return
+	}
+
+	e.logger.Info("Replaying AOF...", zap.Int("commands", len(cmds)))
+
+	for _, cmdVal := range cmds {
+		if cmdVal.Type != resp.TypeArray || len(cmdVal.Array) == 0 {
+			continue
+		}
+
+		name := string(cmdVal.Array[0].String)
+		args := cmdVal.Array[1:]
+
+		cmd, ok := e.commands[strings.ToUpper(name)]
+		if ok {
+			ctx := &context{args: args, storage: e.storage}
+			cmd.execute(ctx)
+		}
+	}
+	e.logger.Info("AOF Replay finished")
 }
 
 // startGCLoop triggers the active expiration mechanism
 func (e *Engine) startGCLoop() {
-	ticker := time.NewTicker(e.gcConf.Interval)
+	ticker := time.NewTicker(e.cfg.GC.Interval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			stats := (*e.storage).DeleteExpired(e.gcConf.SamplesPerCheck)
+			stats := (*e.storage).DeleteExpired(e.cfg.GC.SamplesPerCheck)
 
 			if stats > 0 {
 				e.logger.Debug("GC delete expired", zap.Float64("expired_ratio", stats))
 			}
 
-			if stats < e.gcConf.MatchThreshold {
+			if stats < e.cfg.GC.MatchThreshold {
 				break
 			}
 		case <-e.stopGC:
@@ -67,7 +110,7 @@ func (e *Engine) startGCLoop() {
 
 // close signals background processes to shut down
 func (e *Engine) close() {
-	if e.gcConf.Enabled {
+	if e.cfg.GC.Enabled {
 		close(e.stopGC)
 	}
 }
@@ -110,7 +153,18 @@ func (e *Engine) Execute(name string, args []resp.Value) resp.Value {
 		storage: e.storage,
 	}
 
-	return cmd.execute(ctx)
+	res := cmd.execute(ctx)
+
+	if e.aof != nil && res.Type != resp.TypeError && isWriteCommand(name) {
+		payload, err := resp.SerializeCommand(name, args)
+		if err != nil {
+			e.logger.Error("Failed to serialize command for AOF", zap.Error(err))
+		} else {
+			e.aof.Write(payload)
+		}
+	}
+
+	return res
 }
 
 // Shutdown shuts down the engine and its background services correctly
@@ -118,5 +172,18 @@ func (e *Engine) Shutdown() {
 	e.stopOnce.Do(func() {
 		e.close()
 		e.logger.Info("GC background process stopped")
+
+		if e.aof != nil {
+			e.aof.Close() //nolint:errcheck
+		}
 	})
+}
+
+// isWriteCommand helper what command change state database
+func isWriteCommand(name string) bool {
+	switch name {
+	case "SET", "DEL", "PERSIST", "EXPIRE":
+		return true
+	}
+	return false
 }
