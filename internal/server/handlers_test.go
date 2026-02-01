@@ -15,9 +15,18 @@ import (
 // setupEngine creates a fresh engine with a clean store for each test
 func setupEngine() *Engine {
 	s, _ := storage.NewShardedMapStorage(1) //nolint:errcheck
-	return NewEngine(s, config.GCConfig{
-		Enabled: false,
+	eng, _ := NewEngine(s, &config.Config{
+		GC: config.GCConfig{Enabled: false},
+		Persistence: config.PersistenceConfig{
+			AOF: config.AOFConfig{
+				Enabled: false,
+			},
+			RDB: config.RDBConfig{
+				Enabled: false,
+			},
+		},
 	}, logger.New("debug", "console"))
+	return eng
 }
 
 // helper to construct a RESP command request

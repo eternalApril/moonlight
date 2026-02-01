@@ -10,18 +10,19 @@ import (
 
 // Config represents the root configuration structure for the application
 type Config struct {
-	Server  ServerConfig  `mapstructure:"server"`
-	Storage StorageConfig `mapstructure:"storage"`
-	GC      GCConfig      `mapstructure:"gc"`
-	Log     LogConfig     `mapstructure:"log"`
+	Server      ServerConfig      `mapstructure:"server"`
+	Storage     StorageConfig     `mapstructure:"storage"`
+	GC          GCConfig          `mapstructure:"gc"`
+	Log         LogConfig         `mapstructure:"log"`
+	Persistence PersistenceConfig `mapstructure:"persistence"`
 }
 
 // GCConfig defines the parameters for the background active expiration
 type GCConfig struct {
-	Enabled         bool
-	Interval        time.Duration // how often to run the background check
-	SamplesPerCheck int           // how many keys to check per loop
-	MatchThreshold  float64       // 0.0-1.0. if expired/scanned > threshold, repeat immediately
+	Enabled         bool          `mapstructure:"enabled"`
+	Interval        time.Duration `mapstructure:"interval"`          // how often to run the background check
+	SamplesPerCheck int           `mapstructure:"samples_per_check"` // how many keys to check per loop
+	MatchThreshold  float64       `mapstructure:"match_threshold"`   // 0.0-1.0. if expired/scanned > threshold, repeat immediately
 }
 
 // ServerConfig holds the network settings
@@ -39,6 +40,26 @@ type StorageConfig struct {
 type LogConfig struct {
 	Level  string `mapstructure:"level"`  // debug, info, warn, error
 	Format string `mapstructure:"format"` // json, console
+}
+
+// PersistenceConfig defines settings of AOF and RDB methods
+type PersistenceConfig struct {
+	AOF AOFConfig `mapstructure:"aof"`
+	RDB RDBConfig `mapstructure:"rdb"`
+}
+
+// AOFConfig defines settings of AOF method
+type AOFConfig struct {
+	Enabled  bool   `mapstructure:"enabled"`
+	Filename string `mapstructure:"filename"`
+	Fsync    string `mapstructure:"fsync"` // always, everysec, no
+}
+
+// RDBConfig defines settings of RDB method
+type RDBConfig struct {
+	Enabled  bool   `mapstructure:"enabled"`
+	Filename string `mapstructure:"filename"`
+	Interval string `mapstructure:"interval"`
 }
 
 // Load reads the configuration from a file and overrides it with environment variables
@@ -87,4 +108,12 @@ func setDefaults() {
 	// Logger
 	viper.SetDefault("log.level", "debug")
 	viper.SetDefault("log.format", "json")
+
+	// Persistence
+	viper.SetDefault("persistence.aof.enabled", true)
+	viper.SetDefault("persistence.aof.filename", "appendonly.aof")
+	viper.SetDefault("persistence.aof.fsync", "everysec")
+
+	viper.SetDefault("persistence.rdb.enabled", false)
+	viper.SetDefault("persistence.rdb.filename", "dump.rdb")
 }
