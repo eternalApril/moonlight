@@ -114,7 +114,7 @@ func setDefaults() {
 	viper.SetDefault("persistence.aof.filename", "appendonly.aof")
 	viper.SetDefault("persistence.aof.fsync", "everysec")
 
-	viper.SetDefault("persistence.rdb.enabled", true)
+	viper.SetDefault("persistence.rdb.enabled", false)
 	viper.SetDefault("persistence.rdb.filename", "dump.rdb")
-	viper.SetDefault("persistence.rdb.interval", "5s")
+	viper.SetDefault("persistence.rdb.interval", "60s")
 }

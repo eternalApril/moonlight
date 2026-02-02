@@ -14,3 +14,9 @@ gc:
 log:
   level: "debug"
   format: "json"
+
+persistence:
+  rdb:
+    enabled: true
+    filename: "dump.rdb"
+    interval: "60s"
