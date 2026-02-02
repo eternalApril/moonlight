@@ -21,6 +21,7 @@ type Engine struct {
 	stopGC   chan struct{}      // Channel for the background GC stop signal
 	stopOnce sync.Once          // Ensures that the stop happens only once
 	aof      *persistence.AOF   // AOF instance
+	rdb      *persistence.RDB   // RDB instance
 	logger   *zap.Logger
 }
 
@@ -47,8 +48,22 @@ func NewEngine(s storage.Storage, cfg *config.Config, logger *zap.Logger) (*Engi
 		}
 		engine.aof = aof
 
-		// Replay existing AOF
-		engine.replayAOF()
+		// Restore existing AOF
+		engine.restoreAOF()
+	}
+
+	if cfg.Persistence.RDB.Enabled {
+		engine.rdb = persistence.NewRDB(cfg.Persistence.RDB.Filename, logger)
+
+		if !cfg.Persistence.AOF.Enabled {
+			if err := engine.rdb.Load(s); err != nil {
+				logger.Error("Failed to load RDB", zap.Error(err))
+			}
+		}
+
+		if cfg.Persistence.RDB.Interval != "" {
+			go engine.startAutoSave(cfg.Persistence.RDB.Interval)
+		}
 	}
 
 	if cfg.GC.Enabled {
@@ -58,14 +73,37 @@ func NewEngine(s storage.Storage, cfg *config.Config, logger *zap.Logger) (*Engi
 	return &engine, nil
 }
 
-func (e *Engine) replayAOF() {
+func (e *Engine) startAutoSave(intervalStr string) {
+	interval, err := time.ParseDuration(intervalStr)
+	if err != nil {
+		e.logger.Error("Invalid RDB interval", zap.Error(err))
+		return
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			go func() {
+				if err := e.rdb.Save(*e.storage); err != nil {
+					e.logger.Error("Auto-save RDB failed", zap.Error(err))
+				}
+			}()
+		case <-e.stopGC:
+			return
+		}
+	}
+}
+
+func (e *Engine) restoreAOF() {
 	cmds, err := e.aof.Load()
 	if err != nil {
 		e.logger.Error("Failed to load AOF", zap.Error(err))
 		return
 	}
 
-	e.logger.Info("Replaying AOF...", zap.Int("commands", len(cmds)))
+	e.logger.Info("Restoring AOF...", zap.Int("commands", len(cmds)))
 
 	for _, cmdVal := range cmds {
 		if cmdVal.Type != resp.TypeArray || len(cmdVal.Array) == 0 {
@@ -81,7 +119,7 @@ func (e *Engine) replayAOF() {
 			cmd.execute(ctx)
 		}
 	}
-	e.logger.Info("AOF Replay finished")
+	e.logger.Info("AOF restore finished")
 }
 
 // startGCLoop triggers the active expiration mechanism
@@ -130,6 +168,26 @@ func (e *Engine) registerBasicCommand() {
 	e.register("TTL", commandFunc(ttl))
 	e.register("PTTL", commandFunc(pttl))
 	e.register("PERSIST", commandFunc(persist))
+
+	e.register("SAVE", commandFunc(func(ctx *context) resp.Value {
+		if e.rdb == nil {
+			return resp.MakeError("RDB disabled")
+		}
+		if err := e.rdb.Save(*e.storage); err != nil {
+			return resp.MakeError(err.Error())
+		}
+		return resp.MakeSimpleString("OK")
+	}))
+
+	e.register("BGSAVE", commandFunc(func(ctx *context) resp.Value {
+		if e.rdb == nil {
+			return resp.MakeError("RDB disabled")
+		}
+		go func() {
+			e.rdb.Save(*e.storage)
+		}()
+		return resp.MakeSimpleString("Background saving started")
+	}))
 }
 
 // Execute finds the command by name and executes it with the passed arguments.
@@ -182,7 +240,7 @@ func (e *Engine) Shutdown() {
 // isWriteCommand helper what command change state database
 func isWriteCommand(name string) bool {
 	switch name {
-	case "SET", "DEL", "PERSIST", "EXPIRE":
+	case "SET", "DEL", "PERSIST":
 		return true
 	}
 	return false

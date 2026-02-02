@@ -1,6 +1,9 @@
 package storage
 
-import "time"
+import (
+	"io"
+	"time"
+)
 
 type ExpiryStatus int
 
@@ -40,4 +43,11 @@ type Storage interface {
 
 	// DeleteExpired randomly selects a limit of keys from each shard and delete if his TTL has expired
 	DeleteExpired(limit int) float64
+
+	// Snapshot writes the entire state of the storage to the writer.
+	// Implementation must ensure consistency (or shard-level consistency)
+	Snapshot(w io.Writer) error
+
+	// Restore reads the state from the reader and populates the storage
+	Restore(r io.Reader) error
 }

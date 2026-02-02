@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"encoding/binary"
+	"io"
 	"sync"
 	"time"
 )
@@ -110,7 +112,7 @@ func (m *MapStorage) Delete(key string) bool {
 	return false
 }
 
-// Expiry returns the remaining lifetime and status as ExpiryStatus
+// Expiry returns the remaining lifetime and status as expiryStatus
 func (m *MapStorage) Expiry(key string) (time.Duration, ExpiryStatus) {
 	m.mu.RLock()
 
@@ -217,4 +219,79 @@ func (m *MapStorage) DeleteExpired(limit int) float64 {
 	}
 
 	return float64(expired) / float64(checked)
+}
+
+// Snapshot serializes the shard data in Writer.
+func (m *MapStorage) Snapshot(w io.Writer) error {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	header := make([]byte, 16)
+
+	for key, value := range m.data {
+		exp, hasExp := m.expires[key]
+		if !hasExp {
+			exp = 0
+		}
+
+		binary.LittleEndian.PutUint32(header[0:4], uint32(len(key)))
+		binary.LittleEndian.PutUint32(header[4:8], uint32(len(value)))
+		binary.LittleEndian.PutUint64(header[8:16], uint64(exp))
+
+		// header
+		if _, err := w.Write(header); err != nil {
+			return err
+		}
+
+		// body
+		if _, err := io.WriteString(w, key); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(w, value); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Restore reads the stream and fills the map
+func (m *MapStorage) Restore(r io.Reader) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	header := make([]byte, 16)
+
+	for {
+		_, err := io.ReadFull(r, header)
+		if err == io.EOF {
+			return nil // end of stream
+		}
+		if err != nil {
+			return err
+		}
+
+		keyLen := binary.LittleEndian.Uint32(header[0:4])
+		valueLen := binary.LittleEndian.Uint32(header[4:8])
+		exp := int64(binary.LittleEndian.Uint64(header[8:16]))
+
+		// read key
+		keyBuf := make([]byte, keyLen)
+		if _, err := io.ReadFull(r, keyBuf); err != nil {
+			return err
+		}
+		key := string(keyBuf)
+
+		// read value
+		valBuf := make([]byte, valueLen)
+		if _, err := io.ReadFull(r, valBuf); err != nil {
+			return err
+		}
+		val := string(valBuf)
+
+		m.data[key] = val
+		if exp > 0 {
+			m.expires[key] = exp
+		}
+	}
 }

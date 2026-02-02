@@ -3,6 +3,7 @@ package storage
 import (
 	"errors"
 	"hash/fnv"
+	"io"
 	"math/bits"
 	"sync"
 	"time"
@@ -98,4 +99,39 @@ func (s *ShardedMapStorage) DeleteExpired(limit int) float64 {
 	wg.Wait()
 
 	return totalRatio / float64(shardCount)
+}
+
+// Snapshot iterates over all shards sequentially to minimize locking time
+func (s *ShardedMapStorage) Snapshot(w io.Writer) error {
+	for _, shard := range s.shards {
+		if err := shard.Snapshot(w); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Restore reads the stream and fills the maps
+func (s *ShardedMapStorage) Restore(r io.Reader) error {
+	tempLoader := NewMapStorage()
+	if err := tempLoader.Restore(r); err != nil {
+		return err
+	}
+
+	tempLoader.mu.RLock()
+	defer tempLoader.mu.RUnlock()
+
+	for key, val := range tempLoader.data {
+		expire := tempLoader.expires[key]
+
+		targetShard := s.shards[s.getShardIndex(key)]
+		targetShard.mu.Lock()
+		targetShard.data[key] = val
+		if expire > 0 {
+			targetShard.expires[key] = expire
+		}
+		targetShard.mu.Unlock()
+	}
+
+	return nil
 }

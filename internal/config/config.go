@@ -110,10 +110,11 @@ func setDefaults() {
 	viper.SetDefault("log.format", "json")
 
 	// Persistence
-	viper.SetDefault("persistence.aof.enabled", true)
+	viper.SetDefault("persistence.aof.enabled", false)
 	viper.SetDefault("persistence.aof.filename", "appendonly.aof")
 	viper.SetDefault("persistence.aof.fsync", "everysec")
 
-	viper.SetDefault("persistence.rdb.enabled", false)
+	viper.SetDefault("persistence.rdb.enabled", true)
 	viper.SetDefault("persistence.rdb.filename", "dump.rdb")
+	viper.SetDefault("persistence.rdb.interval", "5s")
 }
