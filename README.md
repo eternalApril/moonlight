@@ -11,18 +11,19 @@ redis-cli).
 ## ️ Supported Commands
 Moonlight currently supports commands:
 
-| Command   | Description                                      | Supported Flags                                    |
-|:----------|:-------------------------------------------------|:---------------------------------------------------|
-| `COMMAND` | Return an array with details about every command | `COUNT`                                            |
-| `PING`    | Check server health                              | -                                                  |
-| `GET`     | Get value by key                                 | -                                                  |
-| `SET`     | Set key to value                                 | `NX`, `XX`, `EX`, `PX`, `EXAT`, `PXAT`, `KEEPTTL`  |
-| `DEL`     | Delete one or more keys                          | -                                                  |
-| `TTL`     | Get remaining time (sec)                         | -                                                  |
-| `PTTL`    | Get remaining time (ms)                          | -                                                  |
-| `PERSIST` | Remove the existing timeout on key               | -                                                  |
-| `SAVE`    | Save data to disk                                | -                                                  |
-| `BGSAVE`  | Save data to disk (background process)           | -                                                  |
+| Command   | Description                                      | Supported Flags                                   |
+|:----------|:-------------------------------------------------|:--------------------------------------------------|
+| `COMMAND` | Return an array with details about every command | `COUNT`                                           |
+| `PING`    | Check server health                              | -                                                 |
+| `GET`     | Get value by key                                 | -                                                 |
+| `SET`     | Set key to value                                 | `NX`, `XX`, `EX`, `PX`, `EXAT`, `PXAT`, `KEEPTTL` |
+| `DEL`     | Delete one or more keys                          | -                                                 |
+| `TTL`     | Get remaining time (sec)                         | -                                                 |
+| `PTTL`    | Get remaining time (ms)                          | -                                                 |
+| `PERSIST` | Remove the existing timeout on key               | -                                                 |
+| `SAVE`    | Save data to disk                                | -                                                 |
+| `BGSAVE`  | Save data to disk (background process)           | -                                                 |
+| `AUTH`    | Authenticate client if password set              | `<password>`                                      |
 
 ## Installation & Usage
 
@@ -55,13 +56,13 @@ go run main.go
 ```
 
 ## Configuration
-
 Moonlight can be configured via a `config.yml` file in the root directory OR via Environment Variables. Environment variables take precedence.
 
 | YAML Key                   | Env Variable                    | Default          | Description                                                                   |
 |:---------------------------|:--------------------------------|:-----------------|:------------------------------------------------------------------------------|
 | `server.port`              | `MOONLIGHT_SERVER_PORT`         | `6380`           | TCP Port to listen on                                                         |
 | `storage.shards`           | `MOONLIGHT_STORAGE_SHARDS`      | `32`             | Number of map shards (Power of 2)                                             |
+| `storage.requirepass`      | `MOONLIGHT_STORAGE_REQUIREPASS` | `""`             | Password for authenticate clients                                             |
 | `gc.enabled`               | `MOONLIGHT_GC_ENABLED`          | `true`           | Enable background expiration                                                  |
 | `gc.interval`              | `MOONLIGHT_GC_INTERVAL`         | `100ms`          | How often GC runs                                                             |
 | `gc.sample_per_shard`      | `MOONLIGHT_GC_SAMPLE_PER_SHARD` | `20`             | How many keys GC check in every shard                                         |
@@ -80,6 +81,7 @@ Moonlight can be configured via a `config.yml` file in the root directory OR via
 server:
   host: "0.0.0.0"
   port: "6380"
+  requirepass: "secret"
 
 storage:
   shards: 32
