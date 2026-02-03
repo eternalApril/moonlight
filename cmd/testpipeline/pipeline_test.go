@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TestPipelining database have to launched on localhost:6380 without Password
 func TestPipelining(t *testing.T) {
 	rdb := redis.NewClient(&redis.Options{
 		Addr: "127.0.0.1:6380",
