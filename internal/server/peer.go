@@ -11,8 +11,8 @@ import (
 // It wraps a network connection and provides synchronized methods for reading and writing RESP-encoded data
 type Peer struct {
 	conn   net.Conn
-	reader resp.Reader
-	writer resp.Writer
+	reader *resp.Decoder
+	writer *resp.Encoder
 	mu     sync.Mutex
 }
 
@@ -41,4 +41,16 @@ func (p *Peer) ReadCommand() (resp.Value, error) {
 // Close terminates the underlying network connection
 func (p *Peer) Close() error {
 	return p.conn.Close()
+}
+
+// Flush sends all buffered data to the client
+func (p *Peer) Flush() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.writer.Flush()
+}
+
+// InputBuffered returns the number of bytes that can be read from the current buffer
+func (p *Peer) InputBuffered() int {
+	return p.reader.Buffered()
 }

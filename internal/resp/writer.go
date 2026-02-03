@@ -60,7 +60,7 @@ func (e *Encoder) Write(v Value) error {
 		return err
 	}
 
-	return e.writer.Flush()
+	return nil
 }
 
 // WriteHeader writes the type prefix, numeric value, and CRLF
@@ -90,4 +90,9 @@ func (e *Encoder) appendInt(n int64) {
 	b := e.writer.AvailableBuffer()
 	b = strconv.AppendInt(b, n, 10)
 	e.writer.Write(b) //nolint:errcheck
+}
+
+// Flush forces the buffer to be written to the underlying writer
+func (e *Encoder) Flush() error {
+	return e.writer.Flush()
 }

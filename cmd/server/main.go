@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"io"
 	"net"
 	"os/signal"
 	"strings"
@@ -36,6 +37,9 @@ func handleConnection(conn net.Conn, engine *server.Engine, log *zap.Logger) {
 	for {
 		cmdValue, err := peer.ReadCommand()
 		if err != nil {
+			if err != io.EOF {
+				log.Warn("read command failed", zap.Error(err))
+			}
 			return
 		}
 
@@ -57,6 +61,12 @@ func handleConnection(conn net.Conn, engine *server.Engine, log *zap.Logger) {
 		if err = peer.Send(result); err != nil {
 			log.Error("error writing response:", zap.Error(err))
 			return
+		}
+
+		if peer.InputBuffered() == 0 {
+			if err := peer.Flush(); err != nil {
+				return
+			}
 		}
 	}
 }

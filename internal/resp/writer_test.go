@@ -95,6 +95,11 @@ func TestEncoder_Write(t *testing.T) {
 				t.Fatalf("Write() failed: %v", err)
 			}
 
+			err = enc.Flush()
+			if err != nil {
+				t.Fatalf("Flush() failed: %v", err)
+			}
+
 			if buf.String() != tt.expected {
 				t.Errorf("Write() got = %q, want %q", buf.String(), tt.expected)
 			}
@@ -107,10 +112,15 @@ func TestEncoder_WriteError(t *testing.T) {
 	enc := resp.NewEncoder(errWriter)
 
 	val := resp.Value{Type: resp.TypeSimpleString, String: []byte("test")}
-	err := enc.Write(val)
 
+	err := enc.Write(val)
+	if err != nil {
+		t.Fatalf("Write() failed: %v", err)
+	}
+
+	err = enc.Flush()
 	if err == nil {
-		t.Error("Expected error from Write(), but got nil")
+		t.Error("Expected error from Flush(), but got nil")
 	}
 }
 
