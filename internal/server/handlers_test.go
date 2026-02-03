@@ -55,7 +55,7 @@ func TestPing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res := e.Execute("PING", makeCommand("PING", tt.args...))
+			res := e.Execute(nil, "PING", makeCommand("PING", tt.args...))
 			if res.Type != tt.wantType {
 				t.Errorf("got type %v, want %v", res.Type, tt.wantType)
 			}
@@ -72,31 +72,31 @@ func TestBasicSetGetDel(t *testing.T) {
 	e := setupEngine()
 
 	// GET missing key
-	res := e.Execute("GET", makeCommand("GET", "mykey"))
+	res := e.Execute(nil, "GET", makeCommand("GET", "mykey"))
 	if res.IsNull != true {
 		t.Errorf("expected null for missing key, got %v", res.Type)
 	}
 
 	// SET key
-	res = e.Execute("SET", makeCommand("SET", "mykey", "myvalue"))
+	res = e.Execute(nil, "SET", makeCommand("SET", "mykey", "myvalue"))
 	if string(res.String) != "OK" {
 		t.Errorf("expected OK, got %v", res.String)
 	}
 
 	// GET key
-	res = e.Execute("GET", makeCommand("GET", "mykey"))
+	res = e.Execute(nil, "GET", makeCommand("GET", "mykey"))
 	if string(res.String) != "myvalue" {
 		t.Errorf("expected myvalue, got %s", res.String)
 	}
 
 	// DEL key
-	res = e.Execute("DEL", makeCommand("DEL", "mykey"))
+	res = e.Execute(nil, "DEL", makeCommand("DEL", "mykey"))
 	if res.Integer != 1 {
 		t.Errorf("expected 1 deleted, got %d", res.Integer)
 	}
 
 	// GET key again
-	res = e.Execute("GET", makeCommand("GET", "mykey"))
+	res = e.Execute(nil, "GET", makeCommand("GET", "mykey"))
 	if res.IsNull != true {
 		t.Errorf("expected null after delete, got %v", res.Type)
 	}
@@ -106,34 +106,34 @@ func TestSetNX_XX(t *testing.T) {
 	e := setupEngine()
 
 	// SET NX on new key -> OK
-	res := e.Execute("SET", makeCommand("SET", "k1", "v1", "NX"))
+	res := e.Execute(nil, "SET", makeCommand("SET", "k1", "v1", "NX"))
 	if string(res.String) != "OK" {
 		t.Errorf("SET NX new key failed")
 	}
 
 	// SET NX on existing key -> Nil
-	res = e.Execute("SET", makeCommand("SET", "k1", "v2", "NX"))
+	res = e.Execute(nil, "SET", makeCommand("SET", "k1", "v2", "NX"))
 	if res.IsNull != true {
 		t.Errorf("SET NX existing key should return nil, got %v", res.Type)
 	}
 	// Verify value didn't change
-	val := e.Execute("GET", makeCommand("GET", "k1"))
+	val := e.Execute(nil, "GET", makeCommand("GET", "k1"))
 	if string(val.String) != "v1" {
 		t.Errorf("SET NX changed value despite failure")
 	}
 
 	// SET XX on missing key -> Nil
-	res = e.Execute("SET", makeCommand("SET", "k2", "v2", "XX"))
+	res = e.Execute(nil, "SET", makeCommand("SET", "k2", "v2", "XX"))
 	if res.IsNull != true {
 		t.Errorf("SET XX missing key should return nil, got %v", res.Type)
 	}
 
 	// SET XX on existing key -> OK
-	res = e.Execute("SET", makeCommand("SET", "k1", "v_updated", "XX"))
+	res = e.Execute(nil, "SET", makeCommand("SET", "k1", "v_updated", "XX"))
 	if string(res.String) != "OK" {
 		t.Errorf("SET XX existing key failed")
 	}
-	val = e.Execute("GET", makeCommand("GET", "k1"))
+	val = e.Execute(nil, "GET", makeCommand("GET", "k1"))
 	if string(val.String) != "v_updated" {
 		t.Errorf("SET XX failed to update value")
 	}
@@ -143,31 +143,31 @@ func TestSetTTL(t *testing.T) {
 	e := setupEngine()
 
 	// SET EX (Seconds)
-	e.Execute("SET", makeCommand("SET", "k_ex", "val", "EX", "1"))
+	e.Execute(nil, "SET", makeCommand("SET", "k_ex", "val", "EX", "1"))
 
 	// Check immediately
-	ttl := e.Execute("TTL", makeCommand("TTL", "k_ex"))
+	ttl := e.Execute(nil, "TTL", makeCommand("TTL", "k_ex"))
 	if ttl.Integer != 1 {
 		t.Errorf("expected TTL 1, got %d", ttl.Integer)
 	}
 
 	// Wait for expiration (1.1s)
 	time.Sleep(1100 * time.Millisecond)
-	res := e.Execute("GET", makeCommand("GET", "k_ex"))
+	res := e.Execute(nil, "GET", makeCommand("GET", "k_ex"))
 	if res.IsNull != true {
 		t.Errorf("key should have expired")
 	}
 
 	// SET PX (Milliseconds)
-	e.Execute("SET", makeCommand("SET", "k_px", "val", "PX", "100"))
+	e.Execute(nil, "SET", makeCommand("SET", "k_px", "val", "PX", "100"))
 
-	pttl := e.Execute("PTTL", makeCommand("PTTL", "k_px"))
+	pttl := e.Execute(nil, "PTTL", makeCommand("PTTL", "k_px"))
 	if pttl.Integer <= 0 || pttl.Integer > 100 {
 		t.Errorf("expected PTTL ~100ms, got %d", pttl.Integer)
 	}
 
 	time.Sleep(150 * time.Millisecond)
-	res = e.Execute("GET", makeCommand("GET", "k_px"))
+	res = e.Execute(nil, "GET", makeCommand("GET", "k_px"))
 	if res.IsNull != true {
 		t.Errorf("key should have expired (PX)")
 	}
@@ -177,25 +177,25 @@ func TestSetKeepTTL(t *testing.T) {
 	e := setupEngine()
 
 	// Set key with TTL of 100 seconds
-	e.Execute("SET", makeCommand("SET", "k_keep", "v1", "EX", "100"))
+	e.Execute(nil, "SET", makeCommand("SET", "k_keep", "v1", "EX", "100"))
 
 	// Update value but Keep TTL
-	e.Execute("SET", makeCommand("SET", "k_keep", "v2", "KEEPTTL"))
+	e.Execute(nil, "SET", makeCommand("SET", "k_keep", "v2", "KEEPTTL"))
 
-	val := e.Execute("GET", makeCommand("GET", "k_keep"))
+	val := e.Execute(nil, "GET", makeCommand("GET", "k_keep"))
 	if string(val.String) != "v2" {
 		t.Errorf("KEEPTTL value not updated")
 	}
 
 	// Verify TTL is still approx 100
-	ttl := e.Execute("TTL", makeCommand("TTL", "k_keep"))
+	ttl := e.Execute(nil, "TTL", makeCommand("TTL", "k_keep"))
 	if ttl.Integer < 95 || ttl.Integer > 100 {
 		t.Errorf("KEEPTTL removed the expiration, got %d", ttl.Integer)
 	}
 
 	// Verify KEEPTTL on new key behaves like persistent key (no TTL)
-	e.Execute("SET", makeCommand("SET", "k_new_keep", "v1", "KEEPTTL"))
-	ttl = e.Execute("TTL", makeCommand("TTL", "k_new_keep"))
+	e.Execute(nil, "SET", makeCommand("SET", "k_new_keep", "v1", "KEEPTTL"))
+	ttl = e.Execute(nil, "TTL", makeCommand("TTL", "k_new_keep"))
 	if ttl.Integer != -1 {
 		t.Errorf("KEEPTTL on new key should have -1 TTL, got %d", ttl.Integer)
 	}
@@ -208,9 +208,9 @@ func TestSetTimestamps(t *testing.T) {
 	future := time.Now().Add(2 * time.Second).Unix()
 	futureStr := fmt.Sprintf("%d", future)
 
-	e.Execute("SET", makeCommand("SET", "k_exat", "v", "EXAT", futureStr))
+	e.Execute(nil, "SET", makeCommand("SET", "k_exat", "v", "EXAT", futureStr))
 
-	ttl := e.Execute("TTL", makeCommand("TTL", "k_exat"))
+	ttl := e.Execute(nil, "TTL", makeCommand("TTL", "k_exat"))
 	// Should be 1 or 2 depending on rounding
 	if ttl.Integer < 1 || ttl.Integer > 2 {
 		t.Errorf("EXAT failed, expected ~2s TTL, got %d", ttl.Integer)
@@ -221,18 +221,18 @@ func TestTTL_PTTL_Codes(t *testing.T) {
 	e := setupEngine()
 
 	// Missing Key -> -2
-	res := e.Execute("TTL", makeCommand("TTL", "missing"))
+	res := e.Execute(nil, "TTL", makeCommand("TTL", "missing"))
 	if res.Integer != -2 {
 		t.Errorf("expected -2 for missing key, got %d", res.Integer)
 	}
 
 	// Persistent Key -> -1
-	e.Execute("SET", makeCommand("SET", "persistent", "val"))
-	res = e.Execute("TTL", makeCommand("TTL", "persistent"))
+	e.Execute(nil, "SET", makeCommand("SET", "persistent", "val"))
+	res = e.Execute(nil, "TTL", makeCommand("TTL", "persistent"))
 	if res.Integer != -1 {
 		t.Errorf("expected -1 for persistent key, got %d", res.Integer)
 	}
-	res = e.Execute("PTTL", makeCommand("PTTL", "persistent"))
+	res = e.Execute(nil, "PTTL", makeCommand("PTTL", "persistent"))
 	if res.Integer != -1 {
 		t.Errorf("expected -1 for persistent key (PTTL), got %d", res.Integer)
 	}
@@ -285,7 +285,7 @@ func TestSetSyntaxErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res := e.Execute("SET", makeCommand("SET", tt.args...))
+			res := e.Execute(nil, "SET", makeCommand("SET", tt.args...))
 			if res.Type != resp.TypeError {
 				t.Errorf("expected error, got %v", res.Type)
 			}

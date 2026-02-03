@@ -10,18 +10,20 @@ import (
 // Peer represents a connected client.
 // It wraps a network connection and provides synchronized methods for reading and writing RESP-encoded data
 type Peer struct {
-	conn   net.Conn
-	reader *resp.Decoder
-	writer *resp.Encoder
-	mu     sync.Mutex
+	conn          net.Conn
+	reader        *resp.Decoder
+	writer        *resp.Encoder
+	mu            sync.Mutex
+	authenticated bool
 }
 
 // NewPeer initializes a new client peer from a network connection
 func NewPeer(conn net.Conn) *Peer {
 	return &Peer{
-		conn:   conn,
-		reader: resp.NewDecoder(conn),
-		writer: resp.NewEncoder(conn),
+		conn:          conn,
+		reader:        resp.NewDecoder(conn),
+		writer:        resp.NewEncoder(conn),
+		authenticated: false,
 	}
 }
 

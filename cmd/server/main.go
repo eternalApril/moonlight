@@ -56,7 +56,7 @@ func handleConnection(conn net.Conn, engine *server.Engine, log *zap.Logger) {
 
 		args := cmdValue.Array[1:]
 
-		result := engine.Execute(commandName, args)
+		result := engine.Execute(peer, commandName, args)
 
 		if err = peer.Send(result); err != nil {
 			log.Error("error writing response:", zap.Error(err))

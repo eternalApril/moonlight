@@ -27,8 +27,9 @@ type GCConfig struct {
 
 // ServerConfig holds the network settings
 type ServerConfig struct {
-	Host string `mapstructure:"host"`
-	Port string `mapstructure:"port"`
+	Host        string `mapstructure:"host"`
+	Port        string `mapstructure:"port"`
+	RequirePass string `mapstructure:"requirepass"`
 }
 
 // StorageConfig defines the internal structure of the storage engine
@@ -95,6 +96,7 @@ func setDefaults() {
 	// Server
 	viper.SetDefault("server.host", "0.0.0.0")
 	viper.SetDefault("server.port", "6380")
+	viper.SetDefault("server.requirepass", "")
 
 	// Storage
 	viper.SetDefault("storage.shards", 32)

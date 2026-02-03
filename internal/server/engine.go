@@ -23,6 +23,7 @@ type Engine struct {
 	aof      *persistence.AOF   // AOF instance
 	rdb      *persistence.RDB   // RDB instance
 	logger   *zap.Logger
+	password string
 }
 
 // NewEngine initializes the engine, registers the basic commands, and
@@ -34,6 +35,7 @@ func NewEngine(s storage.Storage, cfg *config.Config, logger *zap.Logger) (*Engi
 		cfg:      cfg,
 		stopGC:   make(chan struct{}),
 		logger:   logger,
+		password: cfg.Server.RequirePass,
 	}
 	engine.registerBasicCommand()
 
@@ -188,17 +190,43 @@ func (e *Engine) registerBasicCommand() {
 		}()
 		return resp.MakeSimpleString("Background saving started")
 	}))
+
+	e.register("AUTH", commandFunc(func(ctx *context) resp.Value {
+		if len(ctx.args) != 1 {
+			return resp.MakeErrorWrongNumberOfArguments("AUTH")
+		}
+
+		if ctx.peer.authenticated {
+			return resp.MakeError("ERR client already authenticated")
+		}
+
+		if e.password == "" {
+			return resp.MakeError("ERR Client sent AUTH, but no password is set")
+		}
+
+		inputPass := string(ctx.args[0].String)
+		if inputPass == e.password {
+			ctx.peer.authenticated = true
+			return resp.MakeSimpleString("OK")
+		}
+
+		return resp.MakeError("WRONGPASS invalid password pair")
+	}))
 }
 
 // Execute finds the command by name and executes it with the passed arguments.
 // If the command is not found, returns an error in the RESP format
-func (e *Engine) Execute(name string, args []resp.Value) resp.Value {
+func (e *Engine) Execute(peer *Peer, name string, args []resp.Value) resp.Value {
 	if e.logger.Core().Enabled(zap.DebugLevel) {
 		// Log the command name and number of args
 		e.logger.Debug("executing command",
 			zap.String("cmd", name),
 			zap.Int("args_count", len(args)),
 		)
+	}
+
+	if e.password != "" && !peer.authenticated && name != "AUTH" {
+		return resp.MakeError("NOAUTH Authentication required")
 	}
 
 	cmd, ok := e.commands[name]
@@ -209,6 +237,7 @@ func (e *Engine) Execute(name string, args []resp.Value) resp.Value {
 	ctx := &context{
 		args:    args,
 		storage: e.storage,
+		peer:    peer,
 	}
 
 	res := cmd.execute(ctx)

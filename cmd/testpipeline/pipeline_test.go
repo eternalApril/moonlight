@@ -1,4 +1,4 @@
-package test_pipeline
+package testpipeline
 
 import (
 	"context"

@@ -9,6 +9,7 @@ import (
 type context struct {
 	args    []resp.Value
 	storage *storage.Storage
+	peer    *Peer
 }
 
 // command defines a common interface for all executable server commands
