@@ -26,7 +26,7 @@ type SetOptions struct {
 // Storage is a common interface for working with key-value storages
 type Storage interface {
 	// Get returns the value and true if the key is found. Otherwise, "", false
-	Get(key string) (string, bool)
+	Get(key string) (string, bool, error)
 
 	// Set writes the value based on the options. Returns true if recording has been performed
 	Set(key, value string, options SetOptions) bool

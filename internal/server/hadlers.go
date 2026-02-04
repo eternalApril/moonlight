@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -94,7 +95,14 @@ func get(ctx *context) resp.Value {
 		return resp.MakeErrorWrongNumberOfArguments("GET")
 	}
 
-	value, ok := (*ctx.storage).Get(string(ctx.args[0].String))
+	value, ok, err := (*ctx.storage).Get(string(ctx.args[0].String))
+	if err != nil {
+		if errors.Is(err, storage.ErrWrongType) {
+			return resp.MakeError("WRONGTYPE Get support only String type")
+		}
+		return resp.MakeError(err.Error())
+	}
+
 	if !ok {
 		return resp.MakeNilBulkString()
 	}

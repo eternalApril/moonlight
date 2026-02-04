@@ -2,14 +2,19 @@ package storage
 
 import (
 	"encoding/binary"
+	"errors"
 	"io"
 	"sync"
 	"time"
 )
 
+var (
+	ErrWrongType = errors.New("WRONGTYPE")
+)
+
 // MapStorage is a thread-safe key-value storage.
 type MapStorage struct {
-	data    map[string]string // key - value
+	data    map[string]Entity // key - value
 	expires map[string]int64  // key - expires time nanoseconds
 	mu      sync.RWMutex
 }
@@ -17,21 +22,25 @@ type MapStorage struct {
 // NewMapStorage creates a new instance oа MapStorage.
 func NewMapStorage() *MapStorage {
 	return &MapStorage{
-		data:    make(map[string]string),
+		data:    make(map[string]Entity),
 		expires: make(map[string]int64),
 		mu:      sync.RWMutex{},
 	}
 }
 
 // Get returns the value and true if the key is found. Otherwise, "", false
-func (m *MapStorage) Get(key string) (string, bool) {
+func (m *MapStorage) Get(key string) (string, bool, error) {
 	m.mu.RLock()
 	exp, hasExp := m.expires[key]
-	val, ok := m.data[key]
+	entity, ok := m.data[key]
 	m.mu.RUnlock()
 
 	if !ok {
-		return "", false
+		return "", false, nil
+	}
+
+	if entity.Type != TypeString {
+		return "", false, ErrWrongType
 	}
 
 	if hasExp && time.Now().UnixNano() > exp {
@@ -43,16 +52,20 @@ func (m *MapStorage) Get(key string) (string, bool) {
 		if hasExp && time.Now().UnixNano() > exp {
 			delete(m.data, key)
 			delete(m.expires, key)
-			return "", false
+			return "", false, nil
 		}
 
-		if val, ok = m.data[key]; ok {
-			return val, true
+		entity, ok = m.data[key]
+		if ok && entity.Type != TypeString {
+			return "", false, ErrWrongType
 		}
-		return "", false
+		if ok {
+			return entity.Value.(string), true, nil
+		}
+		return "", false, nil
 	}
 
-	return val, true
+	return entity.Value.(string), true, nil
 }
 
 // Set writes the value based on the options. Returns true if recording has been performed
@@ -80,7 +93,10 @@ func (m *MapStorage) Set(key, value string, options SetOptions) bool {
 		return false
 	}
 
-	m.data[key] = value
+	m.data[key] = Entity{
+		Type:  TypeString,
+		Value: value,
+	}
 
 	if options.KeepTTL {
 		// if KEEPTTL is set, we do nothing to m.expires (retain existing)
@@ -221,12 +237,40 @@ func (m *MapStorage) DeleteExpired(limit int) float64 {
 	return float64(expired) / float64(checked)
 }
 
+// writeString helper for writing a string with length
+func writeString(w io.Writer, s string) error {
+	lenBuf := make([]byte, 4)
+	binary.LittleEndian.PutUint32(lenBuf, uint32(len(s)))
+	if _, err := w.Write(lenBuf); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(w, s); err != nil {
+		return err
+	}
+	return nil
+}
+
+// readString helper for reading string with length
+func readString(r io.Reader) (string, error) {
+	lenBuf := make([]byte, 4)
+	if _, err := io.ReadFull(r, lenBuf); err != nil {
+		return "", err
+	}
+	strLen := binary.LittleEndian.Uint32(lenBuf)
+
+	buf := make([]byte, strLen)
+	if _, err := io.ReadFull(r, buf); err != nil {
+		return "", err
+	}
+	return string(buf), nil
+}
+
 // Snapshot serializes the shard data in Writer.
 func (m *MapStorage) Snapshot(w io.Writer) error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	header := make([]byte, 16)
+	header := make([]byte, 13)
 
 	for key, value := range m.data {
 		exp, hasExp := m.expires[key]
@@ -235,21 +279,35 @@ func (m *MapStorage) Snapshot(w io.Writer) error {
 		}
 
 		binary.LittleEndian.PutUint32(header[0:4], uint32(len(key)))
-		binary.LittleEndian.PutUint32(header[4:8], uint32(len(value)))
-		binary.LittleEndian.PutUint64(header[8:16], uint64(exp))
+		binary.LittleEndian.PutUint64(header[4:12], uint64(exp))
+		header[12] = byte(value.Type)
 
 		// header
 		if _, err := w.Write(header); err != nil {
 			return err
 		}
 
-		// body
+		// key
 		if _, err := io.WriteString(w, key); err != nil {
 			return err
 		}
-		if _, err := io.WriteString(w, value); err != nil {
-			return err
+
+		// value
+		switch value.Type {
+		case TypeString:
+			if err := writeString(w, value.Value.(string)); err != nil {
+				return err
+			}
+		case TypeList:
+			//TODO List
+		case TypeSet:
+			//TODO Set
+		case TypeHash:
+			//TODO Hash
+		case TypeZSet:
+			//TODO ZSet
 		}
+
 	}
 
 	return nil
@@ -260,7 +318,7 @@ func (m *MapStorage) Restore(r io.Reader) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	header := make([]byte, 16)
+	header := make([]byte, 13)
 
 	for {
 		_, err := io.ReadFull(r, header)
@@ -272,8 +330,8 @@ func (m *MapStorage) Restore(r io.Reader) error {
 		}
 
 		keyLen := binary.LittleEndian.Uint32(header[0:4])
-		valueLen := binary.LittleEndian.Uint32(header[4:8])
-		exp := int64(binary.LittleEndian.Uint64(header[8:16]))
+		exp := int64(binary.LittleEndian.Uint64(header[4:12]))
+		valueType := DataType(header[12])
 
 		// read key
 		keyBuf := make([]byte, keyLen)
@@ -283,13 +341,33 @@ func (m *MapStorage) Restore(r io.Reader) error {
 		key := string(keyBuf)
 
 		// read value
-		valBuf := make([]byte, valueLen)
-		if _, err := io.ReadFull(r, valBuf); err != nil {
-			return err
-		}
-		val := string(valBuf)
+		var value interface{}
 
-		m.data[key] = val
+		switch valueType {
+		case TypeString:
+			val, err := readString(r)
+			if err != nil {
+				return err
+			}
+			value = val
+		case TypeList:
+			//TODO List
+		case TypeSet:
+			//TODO Set
+		case TypeHash:
+			//TODO Hash
+		case TypeZSet:
+			//TODO ZSet
+		}
+
+		if exp > 0 && time.Now().UnixNano() > exp {
+			continue
+		}
+
+		m.data[key] = Entity{
+			Type:  valueType,
+			Value: value,
+		}
 		if exp > 0 {
 			m.expires[key] = exp
 		}

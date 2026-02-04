@@ -50,7 +50,7 @@ func (s *ShardedMapStorage) getShardIndex(key string) uint32 {
 }
 
 // Get returns the value and true if the key is found. Otherwise, "", false.
-func (s *ShardedMapStorage) Get(key string) (string, bool) {
+func (s *ShardedMapStorage) Get(key string) (string, bool, error) {
 	return s.shards[s.getShardIndex(key)].Get(key)
 }
 
