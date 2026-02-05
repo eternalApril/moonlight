@@ -7,7 +7,7 @@ import (
 )
 
 type commandMetadata struct {
-	arity    int      // Arity includes the command name itself
+	arity    int      // the number of arguments that the command accepts
 	flags    []string // read, write, fast, denyoom, etc
 	firstKey int      // 1-based index of the first key
 	lastKey  int      // 1-based index of the last key
@@ -23,7 +23,10 @@ var (
 		"TTL":     {2, []string{"readonly", "fast"}, 1, 1, 1},
 		"PTTL":    {2, []string{"readonly", "fast"}, 1, 1, 1},
 		"PERSIST": {2, []string{"write", "fast"}, 1, 1, 1},
-		"COMMAND": {-1, []string{"random", "loading", "stale"}, 0, 0, 0},
+		"COMMAND": {-1, []string{"loading", "stale"}, 0, 0, 0},
+		"SAVE":    {1, []string{"admin"}, 0, 0, 0},
+		"BGSAVE":  {1, []string{"admin"}, 0, 0, 0},
+		"AUTH":    {2, []string{"no_auth", "fast", "noscript"}, 0, 0, 0},
 	}
 )
 
@@ -82,6 +85,24 @@ var commandDocsRegistry = map[string]commandDoc{
 	"COMMAND": {
 		summary:    "Get array of command details.",
 		complexity: "O(N) where N is the number of commands to look up.",
+		group:      "server",
+		since:      "1.0.0",
+	},
+	"AUTH": {
+		summary:    "Authenticate the connection.",
+		complexity: "O(1)",
+		group:      "connection",
+		since:      "1.0.0",
+	},
+	"SAVE": {
+		summary:    "Synchronously save the dataset to a RDB file.",
+		complexity: "O(N) where N is the total number of keys in the database.",
+		group:      "server",
+		since:      "1.0.0",
+	},
+	"BGSAVE": {
+		summary:    "Asynchronously save the dataset to a RDB file.",
+		complexity: "O(N) where N is the total number of keys in the database.",
 		group:      "server",
 		since:      "1.0.0",
 	},

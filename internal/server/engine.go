@@ -185,9 +185,13 @@ func (e *Engine) registerBasicCommand() {
 		if e.rdb == nil {
 			return resp.MakeError("RDB disabled")
 		}
-		go func() {
-			e.rdb.Save(*e.storage)
-		}()
+		go func(log *zap.Logger) {
+			err := e.rdb.Save(*e.storage)
+			if err != nil {
+				log.Info("Background saving error", zap.Error(err))
+			}
+		}(e.logger)
+
 		return resp.MakeSimpleString("Background saving started")
 	}))
 
