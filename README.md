@@ -13,7 +13,7 @@ Moonlight currently supports commands:
 
 | Command   | Description                                      | Supported Flags                                   |
 |:----------|:-------------------------------------------------|:--------------------------------------------------|
-| `COMMAND` | Return an array with details about every command | `COUNT`                                           |
+| `COMMAND` | Return an array with details about every command | `COUNT`, `DOCS`                                   |
 | `PING`    | Check server health                              | -                                                 |
 | `GET`     | Get value by key                                 | -                                                 |
 | `SET`     | Set key to value                                 | `NX`, `XX`, `EX`, `PX`, `EXAT`, `PXAT`, `KEEPTTL` |
