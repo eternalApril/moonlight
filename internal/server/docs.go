@@ -27,6 +27,8 @@ var (
 		"SAVE":    {1, []string{"admin"}, 0, 0, 0},
 		"BGSAVE":  {1, []string{"admin"}, 0, 0, 0},
 		"AUTH":    {2, []string{"no_auth", "fast", "noscript"}, 0, 0, 0},
+		"HGET":    {3, []string{"readonly", "fast"}, 1, 1, 1},
+		"HSET":    {-4, []string{"write", "fast", "denyoom"}, 1, 1, 1},
 	}
 )
 
@@ -106,6 +108,16 @@ var commandDocsRegistry = map[string]commandDoc{
 		group:      "server",
 		since:      "1.0.0",
 	},
+	"HSET": {
+		summary:    "Set the string value of a hash field",
+		complexity: "O(1) for each field/value pair added, so O(N) to add N field/value pairs when the command is called with multiple field/value pairs.",
+		group:      "hash",
+		since:      "1.0.0"},
+	"HGET": {
+		summary:    "Get the value of a hash field",
+		complexity: "O(1)",
+		group:      "hash",
+		since:      "1.0.0"},
 }
 
 func makeFlagsArray(flags []string) resp.Value {
