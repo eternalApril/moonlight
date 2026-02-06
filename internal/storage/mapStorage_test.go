@@ -60,7 +60,7 @@ func FuzzMapStorage(f *testing.F) {
 			XX:      false,
 		})
 
-		v, ok := s.Get(key)
+		v, ok, _ := s.Get(key)
 		if !ok || v != val {
 			t.Errorf("Get failed after Set: key=%q, val=%q", key, val)
 		}

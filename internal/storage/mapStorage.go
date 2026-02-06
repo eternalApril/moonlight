@@ -373,3 +373,55 @@ func (m *MapStorage) Restore(r io.Reader) error {
 		}
 	}
 }
+
+// HSet sets the specified fields to their respective values in the hash stored at key
+func (m *MapStorage) HSet(key string, field, value []string) int64 {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	entity, ok := m.data[key]
+	if ok && entity.Type != TypeHash {
+		return -1 // wrong type
+	}
+
+	var hash map[string]string
+	if !ok {
+		hash = make(map[string]string)
+		m.data[key] = Entity{
+			Type:  TypeHash,
+			Value: hash,
+		}
+	} else {
+		hash = entity.Value.(map[string]string)
+	}
+
+	var created int64
+
+	for i := 0; i != len(field); i++ {
+		_, fieldExist := hash[field[i]]
+		if !fieldExist {
+			created++
+		}
+		hash[field[i]] = value[i]
+	}
+
+	return created
+}
+
+// HGet returns the value associated with field in the hash stored at key
+func (m *MapStorage) HGet(key, field string) (string, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	entity, exist := m.data[key]
+	if !exist || entity.Type != TypeHash || entity.Value == nil {
+		return "", false
+	}
+
+	value, ok := entity.Value.(map[string]string)[field]
+	if !ok {
+		return "", false
+	}
+
+	return value, true
+}

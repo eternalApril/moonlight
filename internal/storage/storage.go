@@ -50,4 +50,10 @@ type Storage interface {
 
 	// Restore reads the state from the reader and populates the storage
 	Restore(r io.Reader) error
+
+	// HSet sets the specified fields to their respective values in the hash stored at key
+	HSet(key string, field, value []string) int64
+
+	// HGet returns the value associated with field in the hash stored at key
+	HGet(key, field string) (string, bool)
 }

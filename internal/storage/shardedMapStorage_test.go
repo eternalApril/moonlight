@@ -65,7 +65,7 @@ func TestShardedMapStorage_Distribution(t *testing.T) {
 
 		shardIdx := store.getShardIndex(key)
 
-		if _, ok := store.shards[shardIdx].Get(key); !ok {
+		if _, ok, _ := store.shards[shardIdx].Get(key); !ok {
 			t.Errorf("Key %s hashed to shard %d but not found there", key, shardIdx)
 		}
 		keysPopulated[int(shardIdx)]++
@@ -127,7 +127,7 @@ func FuzzSharedMapStorage(f *testing.F) {
 			XX:      false,
 		})
 
-		v, ok := s.Get(key)
+		v, ok, _ := s.Get(key)
 		if !ok || v != val {
 			t.Errorf("Get failed after Set: key=%q, val=%q", key, val)
 		}

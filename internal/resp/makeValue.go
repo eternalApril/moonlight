@@ -20,7 +20,7 @@ func MakeError(s string) Value {
 
 // MakeErrorWrongNumberOfArguments construct Error Value that command had wrong number of arguments for command
 func MakeErrorWrongNumberOfArguments(cmd string) Value {
-	return MakeError(fmt.Sprintf("wrong number of arguments for %s command", cmd))
+	return MakeError(fmt.Sprintf("ERR wrong number of arguments for %s command", cmd))
 }
 
 // MakeBulkString construct BulkString Value from string

@@ -213,3 +213,35 @@ func persist(ctx *context) resp.Value {
 
 	return resp.MakeInteger(code)
 }
+
+// hset sets the specified fields to their respective values in the hash stored at key
+func hset(ctx *context) resp.Value {
+	if len(ctx.args) < 3 || len(ctx.args)%2 != 1 {
+		return resp.MakeErrorWrongNumberOfArguments("HSET")
+	}
+
+	field := make([]string, 0, len(ctx.args)/2)
+	value := make([]string, 0, len(ctx.args)/2)
+
+	for i := 1; i != len(ctx.args); i += 2 {
+		field = append(field, string(ctx.args[i].String))
+		value = append(value, string(ctx.args[i+1].String))
+	}
+
+	created := (*ctx.storage).HSet(string(ctx.args[0].String), field, value)
+
+	return resp.MakeInteger(created)
+}
+
+// hget returns the value associated with field in the hash stored at key
+func hget(ctx *context) resp.Value {
+	if len(ctx.args) != 2 {
+		return resp.MakeErrorWrongNumberOfArguments("HGET")
+	}
+
+	str, ok := (*ctx.storage).HGet(string(ctx.args[0].String), string(ctx.args[1].String))
+	if !ok {
+		return resp.MakeNilBulkString()
+	}
+	return resp.MakeBulkString(str)
+}

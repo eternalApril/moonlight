@@ -170,6 +170,8 @@ func (e *Engine) registerBasicCommand() {
 	e.register("TTL", commandFunc(ttl))
 	e.register("PTTL", commandFunc(pttl))
 	e.register("PERSIST", commandFunc(persist))
+	e.register("HSET", commandFunc(hset))
+	e.register("HGET", commandFunc(hget))
 
 	e.register("SAVE", commandFunc(func(ctx *context) resp.Value {
 		if e.rdb == nil {
