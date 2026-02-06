@@ -2,6 +2,7 @@ package resp_test
 
 import (
 	"errors"
+	"io"
 	"reflect"
 	"strings"
 	"testing"
@@ -40,6 +41,10 @@ func runTest(t *testing.T, name string, input string, want resp.Value, wantErr e
 
 		if !reflect.DeepEqual(got.Array, want.Array) {
 			t.Errorf("got array %v, want %v", got.Array, want.Array)
+		}
+
+		if !reflect.DeepEqual(got.Map, want.Map) {
+			t.Errorf("got map %v, want %v", got.Map, want.Map)
 		}
 	})
 }
@@ -176,6 +181,65 @@ func TestDecoder_ReadArray(t *testing.T) {
 			name:    "Corrupt element in array",
 			input:   "*1\r\n+MissingCR\n",
 			wantErr: resp.ErrInvalidEnding,
+		},
+	}
+
+	for _, tt := range tests {
+		runTest(t, tt.name, tt.input, tt.want, tt.wantErr)
+	}
+}
+
+func TestDecoder_ReadMap(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    resp.Value
+		wantErr error
+	}{
+		{
+			name:  "Valid map with 2 entities",
+			input: "%2\r\n$2\r\nk1\r\n$2\r\nv1\r\n$2\r\nk2\r\n$2\r\nv2\r\n",
+			want: resp.Value{Type: resp.TypeMap, Map: map[string]resp.Value{
+				"k1": {Type: resp.TypeBulkString, String: []byte("v1")},
+				"k2": {Type: resp.TypeBulkString, String: []byte("v2")},
+			}},
+		},
+		{
+			name:  "Empty map",
+			input: "%0\r\n",
+			want: resp.Value{
+				Type: resp.TypeMap,
+				Map:  map[string]resp.Value{},
+			},
+		},
+		{
+			name:  "Nil map",
+			input: "%-1\r\n",
+			want: resp.Value{
+				Type:   resp.TypeMap,
+				Map:    nil,
+				IsNull: true,
+			},
+		},
+		{
+			name:  "Map with integer key",
+			input: "%1\r\n:100\r\n+val\r\n",
+			want: resp.Value{
+				Type: resp.TypeMap,
+				Map: map[string]resp.Value{
+					"100": {Type: resp.TypeSimpleString, String: []byte("val")},
+				},
+			},
+		},
+		{
+			name:    "Invalid map size",
+			input:   "%abc\r\n",
+			wantErr: resp.ErrInvalidEnding,
+		},
+		{
+			name:    "Missing value for key",
+			input:   "%1\r\n$1\r\nk\r\n",
+			wantErr: io.EOF,
 		},
 	}
 

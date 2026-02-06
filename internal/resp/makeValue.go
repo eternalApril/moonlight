@@ -54,3 +54,11 @@ func MakeArray(values []Value) Value {
 		Array: values,
 	}
 }
+
+// MakeMap helper creates a Value of type Map
+func MakeMap(m map[string]Value) Value {
+	return Value{
+		Type: TypeMap,
+		Map:  m,
+	}
+}

@@ -83,6 +83,26 @@ func TestEncoder_Write(t *testing.T) {
 			},
 			expected: "*2\r\n:1\r\n*1\r\n+inner\r\n",
 		},
+		{
+			name: "Map Single Element",
+			input: resp.Value{
+				Type: resp.TypeMap,
+				Map: map[string]resp.Value{
+					"key": {Type: resp.TypeSimpleString, String: []byte("val")},
+				},
+			},
+			expected: "%1\r\n$3\r\nkey\r\n+val\r\n",
+		},
+		{
+			name:     "Map Empty",
+			input:    resp.Value{Type: resp.TypeMap, Map: map[string]resp.Value{}},
+			expected: "%0\r\n",
+		},
+		{
+			name:     "Map Null",
+			input:    resp.Value{Type: resp.TypeMap, IsNull: true},
+			expected: "%-1\r\n",
+		},
 	}
 
 	for _, tt := range tests {

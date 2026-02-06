@@ -77,6 +77,19 @@ func (d *Decoder) Read() (Value, error) {
 
 		val.String = str
 		return val, nil
+
+	case TypeMap:
+		m, err := d.readMap()
+		if err != nil {
+			return Value{}, err
+		}
+
+		if m == nil {
+			val.IsNull = true
+		}
+
+		val.Map = m
+		return val, nil
 	}
 
 	return Value{}, errors.New("unexpected type")
@@ -176,6 +189,46 @@ func (d *Decoder) readArray() ([]Value, error) {
 	}
 
 	return buf, nil
+}
+
+func (d *Decoder) readMap() (map[string]Value, error) {
+	size, err := d.readInteger()
+	if err != nil {
+		return nil, err
+	}
+
+	if size == -1 {
+		return nil, nil
+	}
+
+	m := make(map[string]Value, size)
+
+	for i := 0; i < int(size); i++ {
+		keyVal, err := d.Read()
+		if err != nil {
+			return nil, err
+		}
+
+		valVal, err := d.Read()
+		if err != nil {
+			return nil, err
+		}
+
+		var keyStr string
+		switch keyVal.Type {
+		case TypeBulkString, TypeSimpleString:
+			keyStr = string(keyVal.String)
+		case TypeInteger:
+			keyStr = strconv.FormatInt(keyVal.Integer, 10)
+		default:
+			// TODO mb need through error
+			keyStr = string(keyVal.String)
+		}
+
+		m[keyStr] = valVal
+	}
+
+	return m, nil
 }
 
 // Buffered returns the number of bytes that can be read from the buffer

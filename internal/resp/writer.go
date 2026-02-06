@@ -54,6 +54,22 @@ func (e *Encoder) Write(v Value) error {
 				}
 			}
 		}
+	case TypeMap:
+		if v.IsNull {
+			_, err = e.writer.WriteString("%-1\r\n")
+		} else {
+			if err = e.writeHeader('%', int64(len(v.Map))); err == nil {
+				for key, val := range v.Map {
+					keyVal := MakeBulkString(key)
+					if err = e.Write(keyVal); err != nil {
+						return err
+					}
+					if err = e.Write(val); err != nil {
+						return err
+					}
+				}
+			}
+		}
 	}
 
 	if err != nil {

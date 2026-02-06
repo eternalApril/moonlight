@@ -7,6 +7,7 @@ const (
 	TypeInteger      = ':' // :<data>\r\n
 	TypeBulkString   = '$' // $<length>\r\n<data>\r\n
 	TypeArray        = '*' // *<len>\r\n<elements>
+	TypeMap          = '%' // %<number-of-entries>\r\n<key-1><value-1>...<key-n><value-n>
 )
 
 // Value represents a single RESP entity
@@ -25,4 +26,7 @@ type Value struct {
 
 	// IsNull indicates if the value represents a Null Bulk String or Null Array
 	IsNull bool
+
+	// Map holds key-value pairs if the Type is TypeMap
+	Map map[string]Value
 }
