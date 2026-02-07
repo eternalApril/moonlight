@@ -145,3 +145,8 @@ func (s *ShardedMapStorage) HSet(key string, field, value []string) int64 {
 func (s *ShardedMapStorage) HGet(key, field string) (string, bool) {
 	return s.shards[s.getShardIndex(key)].HGet(key, field)
 }
+
+// HGetAll returns all fields and values of the hash stored at key
+func (s *ShardedMapStorage) HGetAll(key string) map[string]string {
+	return s.shards[s.getShardIndex(key)].HGetAll(key)
+}

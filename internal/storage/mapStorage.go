@@ -385,7 +385,7 @@ func (m *MapStorage) HSet(key string, field, value []string) int64 {
 	}
 
 	var hash map[string]string
-	if !ok {
+	if !ok || entity.Value == nil {
 		hash = make(map[string]string)
 		m.data[key] = Entity{
 			Type:  TypeHash,
@@ -411,17 +411,71 @@ func (m *MapStorage) HSet(key string, field, value []string) int64 {
 // HGet returns the value associated with field in the hash stored at key
 func (m *MapStorage) HGet(key, field string) (string, bool) {
 	m.mu.RLock()
-	defer m.mu.RUnlock()
+	exp, hasExp := m.expires[key]
+	entity, ok := m.data[key]
+	m.mu.RUnlock()
 
-	entity, exist := m.data[key]
-	if !exist || entity.Type != TypeHash || entity.Value == nil {
+	if !ok || entity.Type != TypeHash || entity.Value == nil {
 		return "", false
 	}
 
-	value, ok := entity.Value.(map[string]string)[field]
-	if !ok {
+	if hasExp && time.Now().UnixNano() > exp {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+
+		// checking again, can be changed while waiting for the lock
+		exp, hasExp = m.expires[key]
+		if hasExp && time.Now().UnixNano() > exp {
+			delete(m.data, key)
+			delete(m.expires, key)
+			return "", false
+		}
+
+		entity, ok = m.data[key]
+		if ok && entity.Type != TypeHash {
+			return "", false
+		}
+		if ok {
+			return entity.Value.(map[string]string)[field], true
+		}
 		return "", false
 	}
 
-	return value, true
+	return entity.Value.(map[string]string)[field], true
+}
+
+// HGetAll returns all fields and values of the hash stored at key
+func (m *MapStorage) HGetAll(key string) map[string]string {
+	m.mu.RLock()
+	exp, hasExp := m.expires[key]
+	entity, ok := m.data[key]
+	m.mu.RUnlock()
+
+	if !ok || entity.Type != TypeHash || entity.Value == nil {
+		return nil
+	}
+
+	if hasExp && time.Now().UnixNano() > exp {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+
+		// checking again, can be changed while waiting for the lock
+		exp, hasExp = m.expires[key]
+		if hasExp && time.Now().UnixNano() > exp {
+			delete(m.data, key)
+			delete(m.expires, key)
+			return nil
+		}
+
+		entity, ok = m.data[key]
+		if ok && entity.Type != TypeHash {
+			return nil
+		}
+		if ok {
+			return entity.Value.(map[string]string)
+		}
+		return nil
+	}
+
+	return entity.Value.(map[string]string)
 }

@@ -56,9 +56,15 @@ func MakeArray(values []Value) Value {
 }
 
 // MakeMap helper creates a Value of type Map
-func MakeMap(m map[string]Value) Value {
-	return Value{
+func MakeMap(input map[string]string) Value {
+	m := make(map[string]Value)
+	for k, v := range input {
+		m[k] = MakeBulkString(v)
+	}
+
+	val := Value{
 		Type: TypeMap,
 		Map:  m,
 	}
+	return val
 }

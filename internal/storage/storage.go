@@ -56,4 +56,7 @@ type Storage interface {
 
 	// HGet returns the value associated with field in the hash stored at key
 	HGet(key, field string) (string, bool)
+
+	// HGetAll returns all fields and values of the hash stored at key
+	HGetAll(key string) map[string]string
 }

@@ -23,12 +23,13 @@ var (
 		"TTL":     {2, []string{"readonly", "fast"}, 1, 1, 1},
 		"PTTL":    {2, []string{"readonly", "fast"}, 1, 1, 1},
 		"PERSIST": {2, []string{"write", "fast"}, 1, 1, 1},
-		"COMMAND": {-1, []string{"loading", "stale"}, 0, 0, 0},
+		"COMMAND": {-1, []string{"loading", "stale", "random"}, 0, 0, 0},
 		"SAVE":    {1, []string{"admin"}, 0, 0, 0},
 		"BGSAVE":  {1, []string{"admin"}, 0, 0, 0},
 		"AUTH":    {2, []string{"no_auth", "fast", "noscript"}, 0, 0, 0},
 		"HGET":    {3, []string{"readonly", "fast"}, 1, 1, 1},
 		"HSET":    {-4, []string{"write", "fast", "denyoom"}, 1, 1, 1},
+		"HGETALL": {1, []string{"readonly"}, 1, 1, 1},
 	}
 )
 
@@ -116,6 +117,11 @@ var commandDocsRegistry = map[string]commandDoc{
 	"HGET": {
 		summary:    "Get the value of a hash field",
 		complexity: "O(1)",
+		group:      "hash",
+		since:      "1.0.0"},
+	"HGETALL": {
+		summary:    "Get all the fields and values in a hash",
+		complexity: "O(N) where N is the size of the hash.",
 		group:      "hash",
 		since:      "1.0.0"},
 }

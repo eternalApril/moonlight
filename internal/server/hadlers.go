@@ -22,7 +22,7 @@ func cmd(ctx *context) resp.Value {
 		case "DOCS":
 			return getCommandsDocs(ctx.args[1:])
 		}
-		return resp.MakeErrorWrongNumberOfArguments("COMMAND")
+		return resp.MakeError("ERR wrong argument for COMMAND")
 	}
 
 	return getAllCommands()
@@ -244,4 +244,14 @@ func hget(ctx *context) resp.Value {
 		return resp.MakeNilBulkString()
 	}
 	return resp.MakeBulkString(str)
+}
+
+// hgetall returns all fields and values of the hash stored at key
+func hgetall(ctx *context) resp.Value {
+	if len(ctx.args) != 1 {
+		return resp.MakeErrorWrongNumberOfArguments("HGETALL")
+	}
+
+	mp := (*ctx.storage).HGetAll(string(ctx.args[0].String))
+	return resp.MakeMap(mp)
 }
