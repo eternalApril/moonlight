@@ -59,4 +59,9 @@ type Storage interface {
 
 	// HGetAll returns all fields and values of the hash stored at key
 	HGetAll(key string) map[string]string
+
+	// HDel removes the specified fields from the hash stored at key
+	// Deletes the hash if no fields remain.
+	// If key does not exist, it is treated as an empty hash and this command returns 0.
+	HDel(key string, fields []string) int64
 }

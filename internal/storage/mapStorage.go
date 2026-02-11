@@ -513,3 +513,32 @@ func (m *MapStorage) HGetAll(key string) map[string]string {
 
 	return entity.Value.(map[string]string)
 }
+
+// HDel removes the specified fields from the map stored at key
+func (m *MapStorage) HDel(key string, fields []string) int64 {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	entity, ok := m.data[key]
+	if !ok || entity.Type != TypeHash || entity.Value == nil {
+		return 0
+	}
+
+	h := entity.Value.(map[string]string)
+
+	var deleted int64
+
+	for _, field := range fields {
+		// skip field if its does not exist
+		if _, ok := h[field]; ok {
+			delete(h, field)
+			deleted++
+		}
+	}
+
+	if len(h) == 0 {
+		delete(m.data, key)
+	}
+
+	return deleted
+}

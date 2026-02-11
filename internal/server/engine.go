@@ -173,6 +173,7 @@ func (e *Engine) registerBasicCommand() {
 	e.register("HSET", commandFunc(hset))
 	e.register("HGET", commandFunc(hget))
 	e.register("HGETALL", commandFunc(hgetall))
+	e.register("HDEL", commandFunc(hdel))
 
 	e.register("SAVE", commandFunc(func(ctx *context) resp.Value {
 		if e.rdb == nil {

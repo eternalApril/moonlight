@@ -255,3 +255,21 @@ func hgetall(ctx *context) resp.Value {
 	mp := (*ctx.storage).HGetAll(string(ctx.args[0].String))
 	return resp.MakeMap(mp)
 }
+
+// hdel parse arguments for storage.HDel
+func hdel(ctx *context) resp.Value {
+	if len(ctx.args) < 2 {
+		return resp.MakeErrorWrongNumberOfArguments("HDEL")
+	}
+
+	key := string(ctx.args[0].String)
+	fields := make([]string, len(ctx.args)-1)
+
+	for i, field := range ctx.args[1:] {
+		fields[i] = string(field.String)
+	}
+
+	deleted := (*ctx.storage).HDel(key, fields)
+
+	return resp.MakeInteger(deleted)
+}

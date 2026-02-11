@@ -30,6 +30,7 @@ var (
 		"HGET":    {3, []string{"readonly", "fast"}, 1, 1, 1},
 		"HSET":    {-4, []string{"write", "fast", "denyoom"}, 1, 1, 1},
 		"HGETALL": {1, []string{"readonly"}, 1, 1, 1},
+		"HDEL":    {-3, []string{"write", "fast"}, 1, 1, 1},
 	}
 )
 
@@ -122,6 +123,11 @@ var commandDocsRegistry = map[string]commandDoc{
 	"HGETALL": {
 		summary:    "Get all the fields and values in a hash",
 		complexity: "O(N) where N is the size of the hash.",
+		group:      "hash",
+		since:      "1.0.0"},
+	"HDEL": {
+		summary:    "Delete one or more hash fields",
+		complexity: "O(N) where N is the number of fields to be removed.",
 		group:      "hash",
 		since:      "1.0.0"},
 }

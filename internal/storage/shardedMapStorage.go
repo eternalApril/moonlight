@@ -150,3 +150,8 @@ func (s *ShardedMapStorage) HGet(key, field string) (string, bool) {
 func (s *ShardedMapStorage) HGetAll(key string) map[string]string {
 	return s.shards[s.getShardIndex(key)].HGetAll(key)
 }
+
+// HDel calculate index shard and delegates all the logic of the work to the MapStorage
+func (s *ShardedMapStorage) HDel(key string, fields []string) int64 {
+	return s.shards[s.getShardIndex(key)].HDel(key, fields)
+}
