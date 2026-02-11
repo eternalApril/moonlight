@@ -298,12 +298,25 @@ func (m *MapStorage) Snapshot(w io.Writer) error {
 			if err := writeString(w, value.Value.(string)); err != nil {
 				return err
 			}
+		case TypeHash:
+			// [Count][KeyLen][Key][ValLen][Val]...
+			h := value.Value.(map[string]string)
+			if err := binary.Write(w, binary.LittleEndian, uint32(len(h))); err != nil {
+				return err
+			}
+			for field, val := range h {
+				if err := writeString(w, field); err != nil {
+					return err
+				}
+				if err := writeString(w, val); err != nil {
+					return err
+				}
+			}
+
 		case TypeList:
 			//TODO List
 		case TypeSet:
 			//TODO Set
-		case TypeHash:
-			//TODO Hash
 		case TypeZSet:
 			//TODO ZSet
 		}
@@ -350,12 +363,33 @@ func (m *MapStorage) Restore(r io.Reader) error {
 				return err
 			}
 			value = val
+		case TypeHash:
+			var count uint32
+			if err := binary.Read(r, binary.LittleEndian, &count); err != nil {
+				return err
+			}
+
+			h := make(map[string]string, count)
+
+			for range count {
+				field, err := readString(r)
+				if err != nil {
+					return err
+				}
+
+				val, err := readString(r)
+				if err != nil {
+					return err
+				}
+
+				h[field] = val
+			}
+			value = h
+
 		case TypeList:
 			//TODO List
 		case TypeSet:
 			//TODO Set
-		case TypeHash:
-			//TODO Hash
 		case TypeZSet:
 			//TODO ZSet
 		}
