@@ -174,6 +174,7 @@ func (e *Engine) registerBasicCommand() {
 	e.register("HGET", commandFunc(hget))
 	e.register("HGETALL", commandFunc(hgetall))
 	e.register("HDEL", commandFunc(hdel))
+	e.register("HEXISTS", commandFunc(hexists))
 
 	e.register("SAVE", commandFunc(func(ctx *context) resp.Value {
 		if e.rdb == nil {

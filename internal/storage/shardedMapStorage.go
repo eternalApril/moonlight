@@ -155,3 +155,8 @@ func (s *ShardedMapStorage) HGetAll(key string) map[string]string {
 func (s *ShardedMapStorage) HDel(key string, fields []string) int64 {
 	return s.shards[s.getShardIndex(key)].HDel(key, fields)
 }
+
+// HExists returns if field is an existing field in the hash stored at key
+func (s *ShardedMapStorage) HExists(key, field string) int64 {
+	return s.shards[s.getShardIndex(key)].HExists(key, field)
+}

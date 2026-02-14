@@ -273,3 +273,17 @@ func hdel(ctx *context) resp.Value {
 
 	return resp.MakeInteger(deleted)
 }
+
+// hexists parse arguments for storage.HExists
+func hexists(ctx *context) resp.Value {
+	if len(ctx.args) != 2 {
+		return resp.MakeErrorWrongNumberOfArguments("HEXISTS")
+	}
+
+	key := string(ctx.args[0].String)
+	field := string(ctx.args[1].String)
+
+	exist := (*ctx.storage).HExists(key, field)
+
+	return resp.MakeInteger(exist)
+}

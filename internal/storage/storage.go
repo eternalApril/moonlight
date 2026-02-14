@@ -64,4 +64,7 @@ type Storage interface {
 	// Deletes the hash if no fields remain.
 	// If key does not exist, it is treated as an empty hash and this command returns 0.
 	HDel(key string, fields []string) int64
+
+	// HExists returns if field is an existing field in the hash stored at key
+	HExists(key, field string) int64
 }

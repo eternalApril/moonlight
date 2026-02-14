@@ -542,3 +542,41 @@ func (m *MapStorage) HDel(key string, fields []string) int64 {
 
 	return deleted
 }
+
+// HExists returns 1 if field exist, 0 otherwise
+func (m *MapStorage) HExists(key, field string) int64 {
+	m.mu.RLock()
+	value, ok := m.data[key]
+	exp, hasExp := m.expires[key]
+	m.mu.RUnlock()
+
+	if !ok || value.Type != TypeHash || value.Value == nil {
+		return 0
+	}
+
+	if hasExp && time.Now().UnixNano() > exp {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+
+		exp, hasExp = m.expires[key]
+		if hasExp && time.Now().UnixNano() > exp {
+			delete(m.data, key)
+			delete(m.expires, key)
+			return 0
+		}
+
+		value, ok = m.data[key]
+
+		if !ok || value.Type != TypeHash || value.Value == nil {
+			return 0
+		}
+	}
+	h := value.Value.(map[string]string)
+
+	_, has := h[field]
+
+	if has {
+		return 1
+	}
+	return 0
+}
