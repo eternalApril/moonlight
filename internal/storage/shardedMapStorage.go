@@ -137,8 +137,8 @@ func (s *ShardedMapStorage) Restore(r io.Reader) error {
 }
 
 // HSet sets the specified fields to their respective values in the hash stored at key
-func (s *ShardedMapStorage) HSet(key string, field, value []string) int64 {
-	return s.shards[s.getShardIndex(key)].HSet(key, field, value)
+func (s *ShardedMapStorage) HSet(key string, fields map[string]string) int64 {
+	return s.shards[s.getShardIndex(key)].HSet(key, fields)
 }
 
 // HGet returns the value associated with field in the hash stored at key

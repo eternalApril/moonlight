@@ -220,15 +220,13 @@ func hset(ctx *context) resp.Value {
 		return resp.MakeErrorWrongNumberOfArguments("HSET")
 	}
 
-	field := make([]string, 0, len(ctx.args)/2)
-	value := make([]string, 0, len(ctx.args)/2)
+	fields := make(map[string]string, len(ctx.args)/2)
 
 	for i := 1; i != len(ctx.args); i += 2 {
-		field = append(field, string(ctx.args[i].String))
-		value = append(value, string(ctx.args[i+1].String))
+		fields[string(ctx.args[i].String)] = string(ctx.args[i+1].String)
 	}
 
-	created := (*ctx.storage).HSet(string(ctx.args[0].String), field, value)
+	created := (*ctx.storage).HSet(string(ctx.args[0].String), fields)
 
 	return resp.MakeInteger(created)
 }

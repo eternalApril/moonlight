@@ -73,8 +73,12 @@ func (m *MapStorage) Set(key, value string, options SetOptions) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	_, exists := m.data[key]
+	val, exists := m.data[key]
 	if exists {
+		if val.Type != TypeString {
+			return false
+		}
+
 		exp, hasExp := m.expires[key]
 
 		// key exists but is expired, clean it up now so logic below treats it as new
@@ -300,15 +304,25 @@ func (m *MapStorage) Snapshot(w io.Writer) error {
 			}
 		case TypeHash:
 			// [Count][KeyLen][Key][ValLen][Val]...
-			h := value.Value.(map[string]string)
+			h := value.Value.(map[string]HashField)
 			if err := binary.Write(w, binary.LittleEndian, uint32(len(h))); err != nil {
 				return err
 			}
+
+			now := time.Now().UnixNano()
+
 			for field, val := range h {
+				if val.ExpireAt > 0 && now > val.ExpireAt {
+					continue
+				}
+
 				if err := writeString(w, field); err != nil {
 					return err
 				}
-				if err := writeString(w, val); err != nil {
+				if err := writeString(w, val.Value); err != nil {
+					return err
+				}
+				if err := binary.Write(w, binary.LittleEndian, val.ExpireAt); err != nil {
 					return err
 				}
 			}
@@ -369,7 +383,7 @@ func (m *MapStorage) Restore(r io.Reader) error {
 				return err
 			}
 
-			h := make(map[string]string, count)
+			h := make(map[string]HashField, count)
 
 			for range count {
 				field, err := readString(r)
@@ -382,7 +396,12 @@ func (m *MapStorage) Restore(r io.Reader) error {
 					return err
 				}
 
-				h[field] = val
+				var expireAt int64
+				if err := binary.Read(r, binary.LittleEndian, &expireAt); err != nil {
+					return err
+				}
+
+				h[field] = HashField{Value: val, ExpireAt: expireAt}
 			}
 			value = h
 
@@ -408,8 +427,34 @@ func (m *MapStorage) Restore(r io.Reader) error {
 	}
 }
 
+// Hash
+
+// getHash safely obtains the hash and results in the desired type
+func (m *MapStorage) getHash(key string) (map[string]HashField, bool) {
+	entry, exists := m.data[key]
+	if !exists || entry.Type != TypeHash || entry.Value == nil {
+		return nil, false
+	}
+	return entry.Value.(map[string]HashField), true
+}
+
+// checkFieldLocked checks the TTL of the field. If it has expired, it deletes it
+// returns the number of elements and the presence of the field
+func (m *MapStorage) checkFieldLocked(hash map[string]HashField, field string) (int, bool) {
+	val, ok := hash[field]
+	if !ok {
+		return 0, false
+	}
+
+	if val.ExpireAt > 0 && time.Now().UnixNano() > val.ExpireAt {
+		delete(hash, field)
+		return len(hash), false
+	}
+	return len(hash), true
+}
+
 // HSet sets the specified fields to their respective values in the hash stored at key
-func (m *MapStorage) HSet(key string, field, value []string) int64 {
+func (m *MapStorage) HSet(key string, fields map[string]string) int64 {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -418,25 +463,25 @@ func (m *MapStorage) HSet(key string, field, value []string) int64 {
 		return -1 // wrong type
 	}
 
-	var hash map[string]string
+	var hash map[string]HashField
 	if !ok || entity.Value == nil {
-		hash = make(map[string]string)
+		hash = make(map[string]HashField)
 		m.data[key] = Entity{
 			Type:  TypeHash,
 			Value: hash,
 		}
 	} else {
-		hash = entity.Value.(map[string]string)
+		hash = entity.Value.(map[string]HashField)
 	}
 
-	var created int64
+	var created int64 = 0
 
-	for i := 0; i != len(field); i++ {
-		_, fieldExist := hash[field[i]]
-		if !fieldExist {
+	for f, v := range fields {
+		// when updating, the TTL value is reset
+		if _, ok = hash[f]; !ok {
 			created++
 		}
-		hash[field[i]] = value[i]
+		hash[f] = HashField{Value: v, ExpireAt: 0}
 	}
 
 	return created
@@ -444,74 +489,55 @@ func (m *MapStorage) HSet(key string, field, value []string) int64 {
 
 // HGet returns the value associated with field in the hash stored at key
 func (m *MapStorage) HGet(key, field string) (string, bool) {
-	m.mu.RLock()
-	exp, hasExp := m.expires[key]
-	entity, ok := m.data[key]
-	m.mu.RUnlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-	if !ok || entity.Type != TypeHash || entity.Value == nil {
+	hash, ok := m.getHash(key)
+	if !ok {
 		return "", false
 	}
 
-	if hasExp && time.Now().UnixNano() > exp {
-		m.mu.Lock()
-		defer m.mu.Unlock()
-
-		// checking again, can be changed while waiting for the lock
-		exp, hasExp = m.expires[key]
-		if hasExp && time.Now().UnixNano() > exp {
-			delete(m.data, key)
-			delete(m.expires, key)
-			return "", false
-		}
-
-		entity, ok = m.data[key]
-		if ok && entity.Type != TypeHash {
-			return "", false
-		}
-		if ok {
-			return entity.Value.(map[string]string)[field], true
-		}
+	lenHash, ok := m.checkFieldLocked(hash, field)
+	if lenHash == 0 {
+		delete(m.data, key)
 		return "", false
 	}
 
-	return entity.Value.(map[string]string)[field], true
+	if !ok {
+		return "", false
+	}
+
+	return hash[field].Value, true
 }
 
 // HGetAll returns all fields and values of the hash stored at key
 func (m *MapStorage) HGetAll(key string) map[string]string {
-	m.mu.RLock()
-	exp, hasExp := m.expires[key]
-	entity, ok := m.data[key]
-	m.mu.RUnlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-	if !ok || entity.Type != TypeHash || entity.Value == nil {
+	hash, ok := m.getHash(key)
+	if !ok {
 		return nil
 	}
 
-	if hasExp && time.Now().UnixNano() > exp {
-		m.mu.Lock()
-		defer m.mu.Unlock()
+	result := make(map[string]string, len(hash))
+	now := time.Now().UnixNano()
 
-		// checking again, can be changed while waiting for the lock
-		exp, hasExp = m.expires[key]
-		if hasExp && time.Now().UnixNano() > exp {
-			delete(m.data, key)
-			delete(m.expires, key)
-			return nil
+	for f, v := range hash {
+		if v.ExpireAt > 0 && now > v.ExpireAt {
+			delete(hash, f)
+			continue
 		}
 
-		entity, ok = m.data[key]
-		if ok && entity.Type != TypeHash {
-			return nil
-		}
-		if ok {
-			return entity.Value.(map[string]string)
-		}
+		result[f] = v.Value
+	}
+
+	if len(hash) == 0 {
+		delete(m.data, key)
 		return nil
 	}
 
-	return entity.Value.(map[string]string)
+	return result
 }
 
 // HDel removes the specified fields from the map stored at key
@@ -519,25 +545,24 @@ func (m *MapStorage) HDel(key string, fields []string) int64 {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	entity, ok := m.data[key]
-	if !ok || entity.Type != TypeHash || entity.Value == nil {
+	hash, ok := m.getHash(key)
+	if !ok {
 		return 0
 	}
 
-	h := entity.Value.(map[string]string)
-
 	var deleted int64
 
-	for _, field := range fields {
+	for _, f := range fields {
 		// skip field if its does not exist
-		if _, ok := h[field]; ok {
-			delete(h, field)
+		if _, ok := hash[f]; ok {
+			delete(hash, f)
 			deleted++
 		}
 	}
 
-	if len(h) == 0 {
+	if len(hash) == 0 {
 		delete(m.data, key)
+		delete(m.expires, key)
 	}
 
 	return deleted
@@ -545,38 +570,23 @@ func (m *MapStorage) HDel(key string, fields []string) int64 {
 
 // HExists returns 1 if field exist, 0 otherwise
 func (m *MapStorage) HExists(key, field string) int64 {
-	m.mu.RLock()
-	value, ok := m.data[key]
-	exp, hasExp := m.expires[key]
-	m.mu.RUnlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-	if !ok || value.Type != TypeHash || value.Value == nil {
+	hash, ok := m.getHash(key)
+	if !ok {
 		return 0
 	}
 
-	if hasExp && time.Now().UnixNano() > exp {
-		m.mu.Lock()
-		defer m.mu.Unlock()
-
-		exp, hasExp = m.expires[key]
-		if hasExp && time.Now().UnixNano() > exp {
-			delete(m.data, key)
-			delete(m.expires, key)
-			return 0
-		}
-
-		value, ok = m.data[key]
-
-		if !ok || value.Type != TypeHash || value.Value == nil {
-			return 0
-		}
+	lenHash, ok := m.checkFieldLocked(hash, field)
+	if lenHash == 0 {
+		delete(m.data, key)
+		return 0
 	}
-	h := value.Value.(map[string]string)
 
-	_, has := h[field]
-
-	if has {
-		return 1
+	if !ok {
+		return 0
 	}
-	return 0
+
+	return 1
 }
