@@ -298,3 +298,37 @@ func hlen(ctx *context) resp.Value {
 
 	return resp.MakeInteger(mapLen)
 }
+
+// hkeys parse arguments for storage.HKeys
+func hkeys(ctx *context) resp.Value {
+	if len(ctx.args) != 1 {
+		return resp.MakeErrorWrongNumberOfArguments("HKEYS")
+	}
+
+	key := string(ctx.args[0].String)
+
+	fields := (*ctx.storage).HKeys(key)
+	response := make([]resp.Value, 0, len(fields))
+	for _, field := range fields {
+		response = append(response, resp.MakeSimpleString(field))
+	}
+
+	return resp.MakeArray(response)
+}
+
+// hvals parse arguments for storage.HVals
+func hvals(ctx *context) resp.Value {
+	if len(ctx.args) != 1 {
+		return resp.MakeErrorWrongNumberOfArguments("HVALS")
+	}
+
+	key := string(ctx.args[0].String)
+
+	vals := (*ctx.storage).HVals(key)
+	response := make([]resp.Value, 0, len(vals))
+	for _, val := range vals {
+		response = append(response, resp.MakeSimpleString(val))
+	}
+
+	return resp.MakeArray(response)
+}

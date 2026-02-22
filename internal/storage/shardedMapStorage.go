@@ -165,3 +165,13 @@ func (s *ShardedMapStorage) HExists(key, field string) int64 {
 func (s *ShardedMapStorage) HLen(key string) int64 {
 	return s.shards[s.getShardIndex(key)].HLen(key)
 }
+
+// HKeys returns all field names in the hash stored at key
+func (s *ShardedMapStorage) HKeys(key string) []string {
+	return s.shards[s.getShardIndex(key)].HKeys(key)
+}
+
+// HVals returns all values in the hash stored at key
+func (s *ShardedMapStorage) HVals(key string) []string {
+	return s.shards[s.getShardIndex(key)].HVals(key)
+}

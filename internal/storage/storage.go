@@ -70,4 +70,10 @@ type Storage interface {
 
 	// HLen returns the number of fields contained in the hash stored at key
 	HLen(key string) int64
+
+	// HKeys returns all field names in the hash stored at key
+	HKeys(key string) []string
+
+	// HVals returns all values in the hash stored at key
+	HVals(key string) []string
 }

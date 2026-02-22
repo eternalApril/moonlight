@@ -613,3 +613,49 @@ func (m *MapStorage) HLen(key string) int64 {
 
 	return cnt
 }
+
+// HKeys returns all field names in the hash stored at key
+func (m *MapStorage) HKeys(key string) []string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	hash, ok := m.getHash(key)
+	if !ok {
+		return nil
+	}
+
+	now := time.Now().UnixNano()
+	response := make([]string, 0, len(hash))
+
+	for f, v := range hash {
+		if v.ExpireAt > now {
+			continue
+		}
+		response = append(response, f)
+	}
+
+	return response
+}
+
+// HVals returns all values in the hash stored at key
+func (m *MapStorage) HVals(key string) []string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	hash, ok := m.getHash(key)
+	if !ok {
+		return nil
+	}
+
+	now := time.Now().UnixNano()
+	response := make([]string, 0, len(hash))
+
+	for _, v := range hash {
+		if v.ExpireAt > now {
+			continue
+		}
+		response = append(response, v.Value)
+	}
+
+	return response
+}
