@@ -285,3 +285,16 @@ func hexists(ctx *context) resp.Value {
 
 	return resp.MakeInteger(exist)
 }
+
+// hlen parse arguments for storage.HLen
+func hlen(ctx *context) resp.Value {
+	if len(ctx.args) != 1 {
+		return resp.MakeErrorWrongNumberOfArguments("HLEN")
+	}
+
+	key := string(ctx.args[0].String)
+
+	mapLen := (*ctx.storage).HLen(key)
+
+	return resp.MakeInteger(mapLen)
+}

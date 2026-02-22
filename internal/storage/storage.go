@@ -67,4 +67,7 @@ type Storage interface {
 
 	// HExists returns if field is an existing field in the hash stored at key
 	HExists(key, field string) int64
+
+	// HLen returns the number of fields contained in the hash stored at key
+	HLen(key string) int64
 }

@@ -590,3 +590,26 @@ func (m *MapStorage) HExists(key, field string) int64 {
 
 	return 1
 }
+
+// HLen returns the number of fields contained in the hash stored at key
+func (m *MapStorage) HLen(key string) int64 {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	hash, ok := m.getHash(key)
+	if !ok {
+		return 0
+	}
+
+	now := time.Now().UnixNano()
+	var cnt int64
+
+	for _, v := range hash {
+		if v.ExpireAt > now {
+			continue
+		}
+		cnt++
+	}
+
+	return cnt
+}

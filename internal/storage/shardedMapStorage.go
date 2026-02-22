@@ -160,3 +160,8 @@ func (s *ShardedMapStorage) HDel(key string, fields []string) int64 {
 func (s *ShardedMapStorage) HExists(key, field string) int64 {
 	return s.shards[s.getShardIndex(key)].HExists(key, field)
 }
+
+// HLen returns the number of fields contained in the hash stored at key
+func (s *ShardedMapStorage) HLen(key string) int64 {
+	return s.shards[s.getShardIndex(key)].HLen(key)
+}
