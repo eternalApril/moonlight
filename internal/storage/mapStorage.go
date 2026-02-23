@@ -659,3 +659,65 @@ func (m *MapStorage) HVals(key string) []string {
 
 	return response
 }
+
+// HExpire set an expiration on one or more fields of a given hash key
+func (m *MapStorage) HExpire(key string, ttl time.Duration, opts ExpireOptions, fields []string) ([]int, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	hash, ok := m.getHash(key)
+	if !ok {
+		return nil, false
+	}
+
+	results := make([]int, len(fields))
+	newExpireAt := time.Now().Add(ttl).UnixNano()
+
+	for i, f := range fields {
+		val, exists := hash[f]
+		if !exists {
+			results[i] = -2
+			continue
+		}
+
+		// lazy expiration check
+		currExpire := val.ExpireAt
+		if currExpire > 0 && time.Now().UnixNano() > currExpire {
+			delete(hash, f)
+			results[i] = -2
+			continue
+		}
+
+		shouldSet := true
+
+		if opts.NX && currExpire != 0 {
+			shouldSet = false // Has expiry, NX forbids
+		}
+		if opts.XX && currExpire == 0 {
+			shouldSet = false // No expiry, XX forbids
+		}
+		if opts.GT {
+			// Set only if new > current
+			// GT/LT only valid against existing TTL
+			if currExpire == 0 || newExpireAt <= currExpire {
+				shouldSet = false
+			}
+		}
+		if opts.LT {
+			// Set only if new < current
+			if currExpire != 0 && newExpireAt >= currExpire {
+				shouldSet = false
+			}
+		}
+
+		if shouldSet {
+			val.ExpireAt = newExpireAt
+			hash[f] = val
+			results[i] = 1
+		} else {
+			results[i] = 0 // Condition not met
+		}
+	}
+
+	return results, true
+}

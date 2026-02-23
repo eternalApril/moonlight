@@ -175,3 +175,8 @@ func (s *ShardedMapStorage) HKeys(key string) []string {
 func (s *ShardedMapStorage) HVals(key string) []string {
 	return s.shards[s.getShardIndex(key)].HVals(key)
 }
+
+// HExpire set an expiration on one or more fields of a given hash key
+func (s *ShardedMapStorage) HExpire(key string, ttl time.Duration, opts ExpireOptions, fields []string) ([]int, bool) {
+	return s.shards[s.getShardIndex(key)].HExpire(key, ttl, opts, fields)
+}

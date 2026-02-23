@@ -178,6 +178,7 @@ func (e *Engine) registerBasicCommand() {
 	e.register("HLEN", commandFunc(hlen))
 	e.register("HKEYS", commandFunc(hkeys))
 	e.register("HVALS", commandFunc(hvals))
+	e.register("HEXPIRE", commandFunc(hexpire))
 
 	e.register("SAVE", commandFunc(func(ctx *context) resp.Value {
 		if e.rdb == nil {

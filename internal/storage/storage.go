@@ -23,6 +23,13 @@ type SetOptions struct {
 	XX      bool          // only set if the key already exists
 }
 
+type ExpireOptions struct {
+	NX bool // Set expiry only when the field has no expiry
+	XX bool // Set expiry only when the field has an existing expiry
+	GT bool // Set expiry only when the new expiry is greater than current
+	LT bool // Set expiry only when the new expiry is less than current
+}
+
 // Storage is a common interface for working with key-value storages
 type Storage interface {
 	// Get returns the value and true if the key is found. Otherwise, "", false
@@ -76,4 +83,7 @@ type Storage interface {
 
 	// HVals returns all values in the hash stored at key
 	HVals(key string) []string
+
+	// HExpire set an expiration on one or more fields of a given hash key
+	HExpire(key string, ttl time.Duration, opts ExpireOptions, fields []string) ([]int, bool)
 }
